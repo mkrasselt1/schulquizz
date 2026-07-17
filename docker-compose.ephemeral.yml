@@ -1,0 +1,10 @@
+# Override für Betrieb OHNE persistente Datenbank.
+# Verwendung:
+#   docker compose -f docker-compose.yml -f docker-compose.ephemeral.yml up -d --build
+# MariaDB legt seine Daten in ein tmpfs (RAM) – nach dem Stoppen ist alles weg.
+
+services:
+  mariadb:
+    volumes: []
+    tmpfs:
+      - /var/lib/mysql
