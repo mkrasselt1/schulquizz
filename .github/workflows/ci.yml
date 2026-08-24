@@ -3,9 +3,11 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['*']
   pull_request:
 
 jobs:
+  # 1) Unit-/Feature-Tests gegen SQLite (schnell) + Frontend-Build-Prüfung
   tests:
     runs-on: ubuntu-latest
     steps:
@@ -32,8 +34,27 @@ jobs:
           npm ci
           npm run build
 
-      - name: App-Key & Tests
+      - name: Build-Prüfung – ist Tailwind-CSS wirklich kompiliert?
+        run: |
+          CSS=$(ls public/build/assets/app-*.css | head -1)
+          SIZE=$(wc -c < "$CSS")
+          echo "CSS $CSS = $SIZE Bytes"
+          test "$SIZE" -gt 20000 || (echo "FEHLER: CSS zu klein – Tailwind nicht kompiliert" && exit 1)
+          grep -q '\.flex' "$CSS" || (echo "FEHLER: keine Tailwind-Klassen im CSS" && exit 1)
+
+      - name: App-Key & Tests (SQLite)
         run: |
           cp .env.example .env
           php artisan key:generate
           php artisan test
+
+  # 2) Container-Smoke-Test: baut das echte Standalone-Image und spielt einen Ablauf
+  #    durch – gegen ECHTE MariaDB. Deckt damit den MySQL-Pfad (Migrationen/Fremd-
+  #    schlüssel-Reihenfolge) UND die Deployment-Bugs ab, die Unit-Tests nicht sehen
+  #    (Reverb-Erreichbarkeit, Nachrichtengröße für Bild-Antworten, Entrypoint, HTTP).
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke-Test (echtes Image + MariaDB)
+        run: bash scripts/smoke-test.sh
