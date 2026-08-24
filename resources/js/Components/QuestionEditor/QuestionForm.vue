@@ -8,6 +8,7 @@ import DangerButton from '@/Components/DangerButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import FormField from '@/Components/ui/FormField.vue';
 import ImageUpload from '@/Components/ui/ImageUpload.vue';
+import { parseCloze } from '@/lib/cloze';
 
 const props = defineProps<{
     question: Question;
@@ -78,13 +79,16 @@ function removeOption(i: number) {
     state.options.splice(i, 1);
 }
 
-// cloze/free_text: kommagetrennte akzeptierte Antworten <-> array
+// free_text: kommagetrennte akzeptierte Antworten <-> array
 const acceptedCsv = computed({
     get: () => (state.config.accepted ?? []).join(', '),
     set: (v: string) => {
         state.config.accepted = v.split(',').map((s) => s.trim()).filter(Boolean);
     },
 });
+
+// cloze: Lücken live aus dem Fragetext [[…]] parsen (nur Vorschau).
+const clozeGaps = computed(() => parseCloze(state.prompt).gaps);
 
 function sliderPole(side: 'left' | 'right') {
     if (!state.config[side]) state.config[side] = { mode: 'text', text: {} };
@@ -189,10 +193,18 @@ function destroy() {
         </div>
 
         <!-- CLOZE -->
-        <div v-else-if="question.type === 'cloze'">
-            <FormField :label="t('editor.acceptedAnswers')" :hint="t('editor.clozeHint')">
-                <input v-model="acceptedCsv" :class="inputClass" />
-            </FormField>
+        <div v-else-if="question.type === 'cloze'" class="space-y-2">
+            <p class="text-sm text-gray-500">{{ t('editor.clozeHint') }}</p>
+            <div
+                v-if="clozeGaps.length"
+                class="rounded-md bg-gray-50 p-3 text-sm dark:bg-gray-900"
+            >
+                <div v-for="(g, i) in clozeGaps" :key="i" class="text-gray-700 dark:text-gray-300">
+                    {{ t('editor.gap') }} {{ i + 1 }}:
+                    <span class="font-medium">{{ g.accepted.join(' / ') || '—' }}</span>
+                </div>
+            </div>
+            <p v-else class="text-xs text-amber-600">{{ t('editor.clozeNoGap') }}</p>
         </div>
 
         <!-- FREE TEXT -->

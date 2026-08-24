@@ -24,7 +24,12 @@ class QuestionDefaults
             'config' => self::configFor($type),
         ]);
         $question->game_id = $game->id;
-        $question->setTranslations('prompt_text', ['de' => '']);
+        // Lückentext bekommt einen Beispielsatz mit einer Lücke, damit sofort klar ist,
+        // wie Lücken markiert werden.
+        $prompt = $type === 'cloze'
+            ? 'Die Hauptstadt von Deutschland ist [[Berlin]].'
+            : '';
+        $question->setTranslations('prompt_text', ['de' => $prompt]);
         $question->save();
 
         foreach (self::defaultOptions($type) as $i => $opt) {
@@ -44,7 +49,7 @@ class QuestionDefaults
     {
         return match ($type) {
             'choice' => ['multiple' => false, 'randomize' => null],
-            'cloze' => ['blanks' => [['accepted' => ['']]]],
+            'cloze' => ['threshold' => 0.85],
             'free_text' => ['accepted' => [''], 'threshold' => 0.8],
             'draw' => [
                 'palette' => ['#000000', '#e11d48', '#2563eb', '#16a34a', '#f59e0b', '#ffffff'],

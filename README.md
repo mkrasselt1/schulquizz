@@ -17,7 +17,7 @@ MariaDB/SQLite · **kein Redis** (Queue/Cache über die DB) · i18n DE/EN.
 
 ## Variante A – Lokal ohne Docker (Entwicklung)
 
-Voraussetzungen: PHP 8.3+, Composer, Node 20+.
+Voraussetzungen: PHP 8.4+, Composer, Node 20+. (Laravel 13 zieht Symfony-8-Komponenten, die PHP 8.4 verlangen.)
 
 ```bash
 composer run setup     # .env anlegen, Key, Migrationen, npm install, Build (einmalig)

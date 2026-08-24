@@ -36,4 +36,13 @@ export function setLocale(locale: AppLocale): void {
     i18n.global.locale.value = locale;
     localStorage.setItem(STORAGE_KEY, locale);
     document.documentElement.lang = locale;
+    // Cookie, damit der Server serverseitige Meldungen (Login/Validierung) in der
+    // gewählten Sprache liefert (siehe SetLocale-Middleware).
+    document.cookie = `locale=${locale};path=/;max-age=31536000;SameSite=Lax`;
+}
+
+// Beim ersten Laden das Cookie mit der erkannten Sprache synchronisieren.
+if (typeof document !== 'undefined') {
+    const current = i18n.global.locale.value as AppLocale;
+    document.cookie = `locale=${current};path=/;max-age=31536000;SameSite=Lax`;
 }

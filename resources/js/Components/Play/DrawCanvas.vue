@@ -76,7 +76,7 @@ function clear() {
 <template>
     <div class="space-y-3">
         <div class="flex flex-wrap items-center gap-3">
-            <div class="flex gap-1">
+            <div class="flex items-center gap-1">
                 <button
                     v-for="c in palette"
                     :key="c"
@@ -86,6 +86,26 @@ function clear() {
                     :style="{ backgroundColor: c }"
                     @click="color = c"
                 />
+                <!-- Freie Farbwahl -->
+                <label
+                    class="relative h-7 w-7 cursor-pointer overflow-hidden rounded-full border-2"
+                    :class="!palette.includes(color) ? 'border-gray-800 dark:border-white' : 'border-gray-300'"
+                    :title="t('play.pickColor')"
+                >
+                    <span
+                        class="absolute inset-0 rounded-full"
+                        :style="{
+                            background: !palette.includes(color)
+                                ? color
+                                : 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)',
+                        }"
+                    />
+                    <input
+                        type="color"
+                        v-model="color"
+                        class="absolute inset-0 cursor-pointer opacity-0"
+                    />
+                </label>
             </div>
             <div class="flex items-center gap-1">
                 <button

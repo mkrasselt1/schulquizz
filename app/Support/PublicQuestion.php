@@ -51,6 +51,16 @@ class PublicQuestion
             $data['options'] = $options;
         }
 
+        // Lückentext: Segmente OHNE Lösungen senden; Rohtext (mit [[…]]) NICHT ausliefern.
+        if ($question->type === 'cloze') {
+            $clozeByLocale = [];
+            foreach ($question->getTranslations('prompt_text') as $loc => $text) {
+                $clozeByLocale[$loc] = self::clozeSegments((string) $text);
+            }
+            $data['prompt_text'] = [];
+            $data['config']['cloze'] = $clozeByLocale;
+        }
+
         return $data;
     }
 
@@ -75,6 +85,8 @@ class PublicQuestion
                     ->sortBy('position')->pluck('id')->values()->all();
                 break;
             case 'cloze':
+                $payload['gaps'] = self::clozeGaps($question->getTranslation('prompt_text') ?? '');
+                break;
             case 'free_text':
                 $payload['accepted'] = $question->config['accepted'] ?? [];
                 break;
@@ -107,6 +119,45 @@ class PublicQuestion
     private static function url(?string $path): ?string
     {
         return $path ? Storage::disk('public')->url($path) : null;
+    }
+
+    /**
+     * Lückentext in Segmente zerlegen – OHNE Lösungen (für Schüler/Board).
+     * Syntax: [[Antwort|Alternative]].
+     */
+    public static function clozeSegments(string $raw): array
+    {
+        $segments = [];
+        $gi = 0;
+        $offset = 0;
+
+        if (preg_match_all('/\[\[([^\]]+)\]\]/', $raw, $m, PREG_OFFSET_CAPTURE)) {
+            foreach ($m[0] as $full) {
+                $start = $full[1];
+                if ($start > $offset) {
+                    $segments[] = ['text' => substr($raw, $offset, $start - $offset)];
+                }
+                $segments[] = ['gap' => $gi++];
+                $offset = $start + strlen($full[0]);
+            }
+        }
+        if ($offset < strlen($raw)) {
+            $segments[] = ['text' => substr($raw, $offset)];
+        }
+
+        return $segments;
+    }
+
+    /**
+     * Akzeptierte Lösungen je Lücke (für Auflösung).
+     */
+    public static function clozeGaps(string $raw): array
+    {
+        preg_match_all('/\[\[([^\]]+)\]\]/', $raw, $m);
+
+        return array_map(fn ($g) => [
+            'accepted' => array_values(array_filter(array_map('trim', explode('|', $g)))),
+        ], $m[1] ?? []);
     }
 
     private static function seededShuffle(array $items, string $seed): array

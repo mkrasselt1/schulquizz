@@ -1,6 +1,7 @@
 // Reine Wertungsfunktionen – laufen im Lehrer-Browser (Quelle der Wahrheit).
 // Kennt die Lösungen (nur der autorisierten Lehrkraft ausgeliefert).
 import type { Question } from '@/types/quiz';
+import { parseCloze } from '@/lib/cloze';
 
 export type Correctness = 'correct' | 'wrong' | 'manual' | 'none';
 
@@ -57,8 +58,17 @@ export function grade(question: Question, answer: any): Correctness {
                 : 'wrong';
         }
         case 'cloze': {
-            const accepted: string[] = question.config?.accepted ?? [];
-            return accepted.some((acc) => norm(acc) === norm(answer)) ? 'correct' : 'wrong';
+            const raw = Object.values(question.prompt_text || {})[0] || '';
+            const { gaps } = parseCloze(raw);
+            if (gaps.length === 0) return 'none';
+            const given: string[] = Array.isArray(answer) ? answer : [];
+            const threshold = question.config?.threshold ?? 0.85;
+            const allCorrect = gaps.every((g, i) =>
+                g.accepted.some(
+                    (acc) => norm(acc) === norm(given[i] ?? '') || similarity(acc, given[i] ?? '') >= threshold,
+                ),
+            );
+            return allCorrect ? 'correct' : 'wrong';
         }
         case 'free_text': {
             const accepted: string[] = question.config?.accepted ?? [];

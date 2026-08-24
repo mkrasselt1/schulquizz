@@ -1,0 +1,90 @@
+# Vollständiger Stack aus dem bereits gepushten Docker-Hub-Image – OHNE Neu-Build.
+#
+# Verwendung (auf dem Host oder in Plesk, sofern docker-compose unterstützt):
+#   1. .env anlegen: cp .env.docker.example .env  (APP_KEY/APP_URL/DB-Passwörter setzen)
+#   2. docker compose -f docker-compose.hub.yml up -d
+#
+# Image-Tag bei Bedarf anpassen (IMAGE env oder hier direkt).
+
+services:
+  app:
+    image: ${IMAGE:-mkrasselt1/schulquizz:dev-0.1}
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mariadb
+      DB_PORT: 3306
+    volumes:
+      - app-storage:/var/www/html/storage
+      - public-data:/var/www/html/public
+    networks: [schulquizz]
+
+  reverb:
+    image: ${IMAGE:-mkrasselt1/schulquizz:dev-0.1}
+    restart: unless-stopped
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    depends_on: [app]
+    env_file: .env
+    environment:
+      CONTAINER_ROLE: reverb
+      DB_CONNECTION: mysql
+      DB_HOST: mariadb
+      DB_PORT: 3306
+    ports:
+      - "8080:8080"
+    networks: [schulquizz]
+
+  queue:
+    image: ${IMAGE:-mkrasselt1/schulquizz:dev-0.1}
+    restart: unless-stopped
+    command: php artisan queue:work --tries=3 --sleep=1
+    depends_on: [app]
+    env_file: .env
+    environment:
+      CONTAINER_ROLE: queue
+      DB_CONNECTION: mysql
+      DB_HOST: mariadb
+      DB_PORT: 3306
+    volumes:
+      - app-storage:/var/www/html/storage
+    networks: [schulquizz]
+
+  web:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "8000:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - public-data:/var/www/html/public:ro
+    networks: [schulquizz]
+
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE:-schulquizz}
+      MARIADB_USER: ${DB_USERNAME:-schulquizz}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-secret}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [schulquizz]
+
+volumes:
+  db-data:
+  app-storage:
+  public-data:
+
+networks:
+  schulquizz:

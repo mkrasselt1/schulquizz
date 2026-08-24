@@ -36,6 +36,18 @@ function toggleChoice(id: number) {
     answer.value = selected.value;
 }
 
+// --- CLOZE ---
+const clozeAnswers = ref<string[]>([]);
+const clozeSegments = computed<any[]>(() => {
+    const c = props.question.config?.cloze;
+    if (!c) return [];
+    return c[props.locale] ?? Object.values(c)[0] ?? [];
+});
+function setGap(i: number, val: string) {
+    clozeAnswers.value[i] = val;
+    answer.value = [...clozeAnswers.value];
+}
+
 // --- SORT (drag reorder) ---
 const order = ref<any[]>([]);
 watch(
@@ -43,6 +55,7 @@ watch(
     () => {
         order.value = [...(props.question.options ?? [])];
         selected.value = [];
+        clozeAnswers.value = [];
         answer.value = props.question.type === 'sort' ? order.value.map((o) => o.id) : undefined;
     },
     { immediate: true },
@@ -117,8 +130,22 @@ function onSlider() {
             </div>
         </div>
 
-        <!-- CLOZE / FREE TEXT -->
-        <div v-else-if="question.type === 'cloze' || question.type === 'free_text'">
+        <!-- CLOZE: ein Feld pro Lücke, inline im Text -->
+        <div v-else-if="question.type === 'cloze'" class="text-lg leading-loose text-gray-900 dark:text-gray-100">
+            <template v-for="(seg, i) in clozeSegments" :key="i">
+                <span v-if="seg.text !== undefined">{{ seg.text }}</span>
+                <input
+                    v-else
+                    :value="clozeAnswers[seg.gap]"
+                    @input="setGap(seg.gap, ($event.target as HTMLInputElement).value)"
+                    :disabled="disabled"
+                    class="mx-1 inline-block w-32 rounded border-0 border-b-2 border-indigo-400 bg-transparent px-1 text-center focus:outline-none focus:ring-0"
+                />
+            </template>
+        </div>
+
+        <!-- FREE TEXT -->
+        <div v-else-if="question.type === 'free_text'">
             <input
                 :value="answer"
                 @input="answer = ($event.target as HTMLInputElement).value"

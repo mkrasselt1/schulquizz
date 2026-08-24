@@ -38,11 +38,11 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest
 
-      - name: Bauen & Pushen
+      - name: Bauen & Pushen (self-contained Standalone-Image)
         uses: docker/build-push-action@v6
         with:
           context: .
-          target: app
+          target: standalone
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

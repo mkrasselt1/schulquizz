@@ -28,6 +28,13 @@ const tiles = [
                 <Link :href="route('login')" class="text-sm font-medium text-gray-700 hover:underline dark:text-gray-200">
                     {{ t('nav.login') }}
                 </Link>
+                <Link
+                    v-if="canRegister"
+                    :href="route('register')"
+                    class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                    {{ t('auth.register') }}
+                </Link>
             </div>
         </header>
 
@@ -54,6 +61,12 @@ const tiles = [
                         {{ t('landing.forStudents') }}
                     </Link>
                 </div>
+                <p v-if="canRegister" class="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('auth.noAccount') }}
+                    <Link :href="route('register')" class="font-medium text-indigo-600 underline dark:text-indigo-400">
+                        {{ t('auth.registerNow') }}
+                    </Link>
+                </p>
             </section>
 
             <!-- Datenschutz-Kacheln -->

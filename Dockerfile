@@ -1,23 +1,26 @@
 # syntax=docker/dockerfile:1
 
-# ---------- Stage 1: Frontend build ----------
-FROM node:22-alpine AS frontend
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY resources ./resources
-COPY vite.config.ts tsconfig.json ./
-COPY public ./public
-RUN npm run build
-
-# ---------- Stage 2: PHP dependencies ----------
+# ---------- Stage 1: PHP dependencies ----------
 FROM composer:2 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --prefer-dist --no-interaction --no-progress
 
+# ---------- Stage 2: Frontend build ----------
+FROM node:22-alpine AS frontend
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY resources ./resources
+COPY vite.config.js tsconfig.json tailwind.config.js postcss.config.js ./
+COPY public ./public
+# Ziggy (route()-Helper) wird vom Frontend-Build gebraucht und liegt im Composer-Vendor.
+COPY --from=vendor /app/vendor/tightenco/ziggy ./vendor/tightenco/ziggy
+RUN npm run build
+
 # ---------- Stage 3: Runtime (PHP-FPM) ----------
-FROM php:8.3-fpm-alpine AS app
+# PHP 8.4, passend zur composer.lock (Dependencies verlangen >= 8.4.1).
+FROM php:8.4-fpm-alpine AS app
 WORKDIR /var/www/html
 
 # System + PHP extensions (pdo_mysql for MariaDB, pcntl for Reverb, gd/zip for images/export)
@@ -30,10 +33,51 @@ COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=frontend /app/public/build ./public/build
 
-RUN chown -R www-data:www-data storage bootstrap/cache \
+RUN mkdir -p storage/framework/cache storage/framework/sessions \
+        storage/framework/views storage/logs bootstrap/cache database \
+    && touch database/database.sqlite \
+    && chown -R www-data:www-data storage bootstrap/cache database \
     && cp docker/entrypoint.sh /usr/local/bin/entrypoint \
     && chmod +x /usr/local/bin/entrypoint
 
 EXPOSE 9000
 ENTRYPOINT ["entrypoint"]
 CMD ["php-fpm"]
+
+# ---------- Stage 4: Standalone (alles in EINEM Container) ----------
+# nginx + php-fpm + Reverb + Queue + interne SQLite-DB.
+# "docker run -p 8000:80 <image>" → läuft ohne weitere Konfiguration.
+FROM app AS standalone
+
+RUN apk add --no-cache nginx supervisor \
+    && rm -f /etc/nginx/http.d/default.conf
+
+COPY docker/nginx.standalone.conf /etc/nginx/http.d/default.conf
+COPY docker/supervisord.conf /etc/supervisord.conf
+
+# Self-contained-Defaults: interne SQLite-DB, Reverb lokal, alles über die DB (kein Redis).
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    DB_CONNECTION=sqlite \
+    DB_DATABASE=/var/www/html/storage/database.sqlite \
+    QUEUE_CONNECTION=database \
+    CACHE_STORE=database \
+    SESSION_DRIVER=database \
+    BROADCAST_CONNECTION=reverb \
+    REVERB_APP_ID=schulquizz \
+    REVERB_APP_KEY=schulquizz \
+    REVERB_APP_SECRET=schulquizz-secret \
+    REVERB_SERVER_HOST=0.0.0.0 \
+    REVERB_SERVER_PORT=8080 \
+    REVERB_HOST=127.0.0.1 \
+    REVERB_PORT=8080 \
+    REVERB_SCHEME=http \
+    REVERB_MAX_REQUEST_SIZE=2000000
+
+# Alle persistenten Daten (SQLite-DB, APP_KEY, Uploads) liegen in storage/.
+# → In Plesk NUR diesen einen Ordner als Volume mappen, dann ist alles persistent.
+# /var/www/html/database bleibt im Image (enthält Migrationen – NICHT mounten!).
+VOLUME ["/var/www/html/storage"]
+
+EXPOSE 80
+CMD ["supervisord", "-c", "/etc/supervisord.conf"]
