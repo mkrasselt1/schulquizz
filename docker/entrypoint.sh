@@ -31,6 +31,10 @@ if [ "${CONTAINER_ROLE:-app}" = "app" ]; then
             i=$((i + 1))
             if [ "$i" -ge 60 ]; then
                 echo "[entrypoint] FEHLER: Datenbank ${DB_HOST}:${DB_PORT:-3306} nach 120s nicht erreichbar."
+                php -r '$f=@fsockopen(getenv("DB_HOST"),(int)(getenv("DB_PORT")?:3306),$no,$err,5); echo "[entrypoint] Grund: ".($f?"jetzt erreichbar":"$err (errno $no)")."\n";' || true
+                echo "[entrypoint] Hinweis: Läuft MariaDB auf dem Docker-Host, muss sie auf 172.17.0.1/0.0.0.0 lauschen"
+                echo "[entrypoint]          (bind-address), die Firewall docker0 erlauben und der DB-User von 172.17.% zugreifen dürfen."
+                echo "[entrypoint]          Alternativ DB_CONNECTION weglassen → interne SQLite-DB."
                 exit 1
             fi
             sleep 2
