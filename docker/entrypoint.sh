@@ -40,6 +40,20 @@ if [ "${CONTAINER_ROLE:-app}" = "app" ]; then
             sleep 2
         done
         echo "[entrypoint] Datenbank erreichbar."
+        # Diagnose: Welche Zugangsdaten kommen im Container an, wer antwortet auf dem Port,
+        # und klappt der Login? (Passwort wird NIE ausgegeben, nur Länge/Leerzeichen-Check.)
+        php -r '
+            $h = getenv("DB_HOST"); $p = (int)(getenv("DB_PORT") ?: 3306);
+            $u = (string)getenv("DB_USERNAME"); $d = (string)getenv("DB_DATABASE"); $pw = (string)getenv("DB_PASSWORD");
+            echo "[entrypoint] DB_USERNAME=\"$u\" DB_DATABASE=\"$d\" DB_PASSWORD: ".strlen($pw)." Zeichen".
+                ($pw !== trim($pw) ? " – ACHTUNG: Leerzeichen/Zeilenumbruch am Anfang/Ende!" : "")."\n";
+            if (getenv("DB_URL")) echo "[entrypoint] ACHTUNG: DB_URL ist gesetzt und überschreibt DB_HOST/DB_USERNAME/DB_PASSWORD!\n";
+            $f = @fsockopen($h, $p, $no, $err, 5);
+            if ($f) { stream_set_timeout($f, 3); $g = fread($f, 256); fclose($f);
+                if (preg_match("/^.{5}([\x20-\x7e]+)\x00/s", (string)$g, $m)) echo "[entrypoint] Server auf $h:$p meldet Version: $m[1]\n"; }
+            try { new PDO("mysql:host=$h;port=$p;dbname=$d", $u, $pw, [PDO::ATTR_TIMEOUT => 5]); echo "[entrypoint] Login-Test: OK\n"; }
+            catch (Throwable $e) { echo "[entrypoint] Login-Test: FEHLER – ".$e->getMessage()."\n"; }
+        ' || true
     else
         echo "[entrypoint] WARNUNG: DB_CONNECTION=$DB_CONNECTION, aber kein DB_HOST gesetzt – überspringe Warten."
     fi
