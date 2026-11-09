@@ -21,7 +21,36 @@ class ProfileController extends Controller
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
+            'mcpUrl' => url('/mcp'),
+            // Verbundene KI-Assistenten (MCP/OAuth) – je Client einmal.
+            'connectedApps' => $request->user()->tokens()
+                ->where('revoked', false)
+                ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+                ->with('client')
+                ->latest()
+                ->get()
+                ->groupBy('client_id')
+                ->map(fn ($tokens) => [
+                    'client_id' => (string) $tokens->first()->client_id,
+                    'name' => $tokens->first()->client?->name ?? 'KI-Assistent',
+                    'since' => $tokens->last()->created_at?->toIso8601String(),
+                ])
+                ->values(),
         ]);
+    }
+
+    /**
+     * Zugriff eines KI-Assistenten widerrufen (alle Tokens dieses Clients).
+     */
+    public function revokeApp(Request $request, string $client): RedirectResponse
+    {
+        $tokens = $request->user()->tokens()->where('client_id', $client)->get();
+        foreach ($tokens as $token) {
+            $token->revoke();
+            \Laravel\Passport\RefreshToken::where('access_token_id', $token->id)->update(['revoked' => true]);
+        }
+
+        return Redirect::route('profile.edit');
     }
 
     /**

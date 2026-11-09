@@ -6,6 +6,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
+use Laravel\Passport\Passport;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        // MCP/OAuth: eigene, datenschutzfreundliche Zustimmungsseite (keine externen Fonts).
+        Passport::authorizationView('mcp.authorize');
+        Passport::tokensExpireIn(now()->addDays(30));
+        Passport::refreshTokensExpireIn(now()->addDays(180));
 
         // In Schulnetzen teilt sich oft die ganze Klasse EINE öffentliche IP. Limits daher pro
         // Gerät (Session-Cookie) bzw. Teilnehmer – plus ein großzügiges Netz pro IP gegen Missbrauch.

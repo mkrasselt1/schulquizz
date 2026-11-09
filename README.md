@@ -63,6 +63,25 @@ DB_DATA_PATH=./storage/mariadb    # Bind-Mount-Pfad; leer lassen = benanntes Vol
 
 ---
 
+## KI-Assistenten (MCP-Schnittstelle)
+
+Lehrkräfte können einen KI-Assistenten (z. B. Claude, ChatGPT, Cursor) verbinden, um Rätsel und
+Escape-Räume per Chat anzulegen und zu bearbeiten. Adresse: `https://<eure-domain>/mcp`.
+
+- Anmeldung per **OAuth**: Der Assistent registriert sich selbst, die Lehrkraft meldet sich an
+  und klickt „Erlauben“. Kein Token-Kopieren.
+- Zugriff nur auf **eigene** Spiele, nur Rätsel/Fragen und Räume – keine Schülerdaten, keine Live-Spiele.
+- Widerrufen: Profil → „KI-Assistenten (MCP)“ → „Zugriff entziehen“.
+- Die OAuth-Schlüssel erzeugt der Container beim ersten Start in `storage/` (Volume!).
+
+## Registrierung absichern (optional)
+
+| Variable | Wirkung |
+|---|---|
+| `REGISTRATION_CODE=geheim` | Registrieren nur mit diesem Code |
+| `REGISTRATION_ENABLED=false` | Registrierung komplett aus |
+
+
 ## Datenschutz in Kürze
 
 Keine Schülerkonten · Antworten nur flüchtig (WebSocket → Lehrer-Browser) · keine externen

@@ -27,13 +27,21 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request): RedirectResponse|\Symfony\Component\HttpFoundation\Response
     {
         $request->authenticate();
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $redirect = redirect()->intended(route('dashboard', absolute: false));
+
+        // Kam die Lehrkraft von der KI-Zustimmungsseite (OAuth/MCP)? Das ist keine Inertia-
+        // Seite → vollständig neu laden statt im App-Rahmen anzeigen.
+        if (str_contains($redirect->getTargetUrl(), '/oauth/')) {
+            return Inertia::location($redirect->getTargetUrl());
+        }
+
+        return $redirect;
     }
 
     /**

@@ -327,6 +327,18 @@ export default {
         failed: 'Upload failed – please try again.',
         uploading: 'Uploading …',
     },
+    mcp: {
+        title: 'AI assistants (MCP)',
+        intro: 'Connect an AI assistant such as Claude or ChatGPT to create puzzles and escape rooms by chat. The assistant only sees your own games – no student data.',
+        address: 'Address for the assistant',
+        copy: 'Copy',
+        howTo: 'Add it in your assistant as a "connector" or MCP server. On first connect you log in here and click "Allow".',
+        connected: 'Connected assistants',
+        none: 'None connected yet.',
+        since: 'connected since',
+        revoke: 'Revoke access',
+        confirmRevoke: 'Really revoke access for "{name}"?',
+    },
     landing: {
         heroTitle: 'Live quizzes without collecting data',
         heroSubtitle:

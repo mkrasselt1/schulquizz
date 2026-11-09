@@ -28,6 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            // MCP-Clients (KI-Assistenten) brauchen JSON + 401 statt Weiterleitung zum Login,
+            // damit sie die OAuth-Anmeldung starten können.
+            fn (Request $request) => $request->is('api/*', 'mcp', 'mcp/*'),
         );
     })->create();

@@ -47,6 +47,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::delete('/profile/apps/{client}', [ProfileController::class, 'revokeApp'])->name('profile.apps.revoke');
 
     // --- Bibliothek & Spiele ---
     Route::get('/library', [LibraryController::class, 'index'])->name('library');

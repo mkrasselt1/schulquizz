@@ -60,6 +60,15 @@ for path in / /login /register /join; do
     [ "$code" = "200" ] && pass "$path -> 200" || fail "$path -> $code"
 done
 
+echo "== 5b. MCP/OAuth =="
+code="$(curl -s -o /dev/null -w '%{http_code}' "$BASE/.well-known/oauth-protected-resource/mcp")"
+[ "$code" = "200" ] && pass "OAuth-Metadaten -> 200" || fail "OAuth-Metadaten -> $code"
+code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/mcp" -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')"
+[ "$code" = "401" ] && pass "/mcp ohne Anmeldung -> 401" || fail "/mcp ohne Anmeldung -> $code"
+code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/oauth/register" -H 'Content-Type: application/json' -d '{"client_name":"Smoke","redirect_uris":["https://example.com/cb"]}')"
+case "$code" in 200|201) pass "OAuth-Client-Registrierung -> $code";; *) fail "OAuth-Client-Registrierung -> $code";; esac
+docker exec "$APP" test -f storage/oauth-private.key && pass "OAuth-Schlüssel vorhanden" || fail "OAuth-Schlüssel fehlen"
+
 echo "== 6. Spielablauf: Session + Beitritt + große Bild-Antwort =="
 docker exec "$APP" php artisan tinker --execute='
 $u=App\Models\User::create(["name"=>"S","email"=>"s@s.de","password"=>bcrypt("x")]);

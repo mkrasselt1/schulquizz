@@ -105,6 +105,11 @@ if [ "${CONTAINER_ROLE:-app}" = "app" ]; then
         sleep 5
     done
 
+    # OAuth-Schlüssel für die MCP-Schnittstelle (einmalig, im storage-Volume).
+    if [ ! -f storage/oauth-private.key ]; then
+        as_www php artisan passport:keys --no-interaction >/dev/null && log "OAuth-Schlüssel erzeugt."
+    fi
+
     # Symlink public/storage → storage/app/public (public/ gehört root, daher als root).
     php artisan storage:link --force >/dev/null 2>&1 || true
 

@@ -3,12 +3,15 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DeleteUserForm from './Partials/DeleteUserForm.vue';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
+import ConnectedApps from './Partials/ConnectedApps.vue';
 import { Head } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
 defineProps<{
     mustVerifyEmail?: boolean;
     status?: string;
+    mcpUrl: string;
+    connectedApps: { client_id: string; name: string; since: string | null }[];
 }>();
 
 const { t } = useI18n();
@@ -36,6 +39,10 @@ const { t } = useI18n();
 
                 <div class="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
                     <UpdatePasswordForm class="max-w-xl" />
+                </div>
+
+                <div class="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">
+                    <ConnectedApps :mcp-url="mcpUrl" :apps="connectedApps" class="max-w-xl" />
                 </div>
 
                 <div class="bg-white p-4 shadow sm:rounded-lg sm:p-8 dark:bg-gray-800">

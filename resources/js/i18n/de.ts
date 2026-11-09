@@ -327,6 +327,18 @@ export default {
         failed: 'Hochladen fehlgeschlagen – bitte nochmal versuchen.',
         uploading: 'Lädt hoch …',
     },
+    mcp: {
+        title: 'KI-Assistenten (MCP)',
+        intro: 'Verbinde einen KI-Assistenten wie Claude oder ChatGPT, um Rätsel und Escape-Räume per Chat anzulegen. Der Assistent sieht nur deine eigenen Spiele – keine Schülerdaten.',
+        address: 'Adresse für den Assistenten',
+        copy: 'Kopieren',
+        howTo: 'Im Assistenten als „Connector“ bzw. MCP-Server hinzufügen. Beim ersten Verbinden meldest du dich hier an und klickst „Erlauben“.',
+        connected: 'Verbundene Assistenten',
+        none: 'Noch keiner verbunden.',
+        since: 'verbunden seit',
+        revoke: 'Zugriff entziehen',
+        confirmRevoke: 'Zugriff für „{name}“ wirklich entziehen?',
+    },
     landing: {
         heroTitle: 'Live-Quizze ohne Datensammeln',
         heroSubtitle:
