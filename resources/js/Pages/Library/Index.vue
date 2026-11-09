@@ -16,6 +16,7 @@ interface GameItem {
     title: string;
     description: string | null;
     status: string;
+    mode: 'quiz' | 'escape';
     join_token: string;
     updated_at: string | null;
 }
@@ -25,7 +26,7 @@ defineProps<{ games: GameItem[] }>();
 const { t } = useI18n();
 
 const showCreate = ref(false);
-const createForm = useForm({ title: '', description: '' });
+const createForm = useForm({ title: '', description: '', mode: 'quiz' as 'quiz' | 'escape' });
 const importForm = useForm<{ file: File | null }>({ file: null });
 const importInput = ref<HTMLInputElement | null>(null);
 
@@ -137,6 +138,7 @@ function formatDate(iso: string | null): string {
                         <div>
                             <div class="flex items-start justify-between gap-2">
                                 <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                    <span v-if="game.mode === 'escape'" :title="t('escape.modeEscape')">🔐</span>
                                     {{ game.title }}
                                 </h3>
                                 <span
@@ -185,6 +187,27 @@ function formatDate(iso: string | null): string {
                     {{ t('library.newGameTitle') }}
                 </h2>
 
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                    <button
+                        v-for="m in (['quiz', 'escape'] as const)"
+                        :key="m"
+                        type="button"
+                        class="rounded-lg border-2 p-3 text-left text-sm transition"
+                        :class="
+                            createForm.mode === m
+                                ? 'border-indigo-500 bg-indigo-50 text-gray-900 dark:bg-indigo-900/40 dark:text-gray-100'
+                                : 'border-gray-200 text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:text-gray-300'
+                        "
+                        @click="createForm.mode = m"
+                    >
+                        <div class="text-2xl">{{ m === 'quiz' ? '🎯' : '🔐' }}</div>
+                        <div class="font-semibold">{{ m === 'quiz' ? t('escape.modeQuiz') : t('escape.modeEscape') }}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ m === 'quiz' ? t('escape.modeQuizHelp') : t('escape.modeEscapeHelp') }}
+                        </div>
+                    </button>
+                </div>
+
                 <div class="mt-4">
                     <InputLabel for="title" :value="t('library.titleLabel')" />
                     <TextInput id="title" v-model="createForm.title" class="mt-1 block w-full" required autofocus />
@@ -225,31 +248,31 @@ function formatDate(iso: string | null): string {
                         {{ $t('control.joinMethod') }}
                     </span>
                     <div class="flex gap-3">
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-200">
                             <input type="radio" value="qr" v-model="startForm.join_method" /> {{ $t('control.methodQr') }}
                         </label>
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-200">
                             <input type="radio" value="pin" v-model="startForm.join_method" /> {{ $t('control.methodPin') }}
                         </label>
                     </div>
                 </div>
 
-                <div>
+                <div v-if="startGameItem.mode !== 'escape'">
                     <span class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                         {{ $t('control.advanceMode') }}
                     </span>
                     <div class="flex gap-3">
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-200">
                             <input type="radio" value="teacher" v-model="startForm.advance_mode" /> {{ $t('control.advanceTeacher') }}
                         </label>
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-200">
                             <input type="radio" value="free" v-model="startForm.advance_mode" /> {{ $t('control.advanceFree') }}
                         </label>
                     </div>
                 </div>
 
                 <div>
-                    <label class="flex items-center gap-2 text-sm">
+                    <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                         <input type="checkbox" v-model="startForm.require_fullscreen" />
                         {{ $t('control.requireFullscreen') }}
                     </label>

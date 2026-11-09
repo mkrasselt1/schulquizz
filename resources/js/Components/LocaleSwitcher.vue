@@ -56,7 +56,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onClickOutside));
                 :key="loc"
                 type="button"
                 @click="choose(loc)"
-                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                 :class="
                     loc === locale
                         ? 'font-semibold text-indigo-600 dark:text-indigo-300'

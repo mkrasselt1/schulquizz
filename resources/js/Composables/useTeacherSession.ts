@@ -11,6 +11,14 @@ export interface ParticipantAnswer {
     manualPoints?: number; // vom Lehrer vergeben (draw/free)
 }
 
+/** Escape-Room-Fortschritt (vom Server gemeldet, nur im Lehrer-Browser gehalten). */
+export interface EscapeProgress {
+    room: number;
+    solved: string[];
+    wrong: number;
+    escapedMs: number | null;
+}
+
 export interface LiveParticipant {
     token: string;
     label: string;
@@ -19,6 +27,7 @@ export interface LiveParticipant {
     focus: 'ok' | 'away';
     lastFocusType?: string;
     answers: Record<number, ParticipantAnswer>;
+    escape?: EscapeProgress;
 }
 
 /**
@@ -96,6 +105,20 @@ export function useTeacherSession(
                 };
                 persist();
             })
+            .listen('.escape_progress', (p: any) => {
+                const part = ensure(p.token, p.label, p.kind);
+                part.connected = true;
+                if (!part.escape) part.escape = { room: 0, solved: [], wrong: 0, escapedMs: null };
+                const e = part.escape;
+                if (p.correct) {
+                    if (!e.solved.includes(p.hotspot_id)) e.solved.push(p.hotspot_id);
+                    e.room = Math.max(e.room, Number(p.room_index ?? 0));
+                    if (p.result === 'escaped' && e.escapedMs === null) e.escapedMs = p.elapsed_ms ?? 0;
+                } else {
+                    e.wrong++;
+                }
+                persist();
+            })
             .listen('.focus', (p: any) => {
                 const part = ensure(p.token, p.label, 'emoji');
                 part.connected = true;
@@ -133,6 +156,33 @@ export function useTeacherSession(
             .sort((a, b) => b.score - a.score || a.totalTime - b.totalTime),
     );
 
+    /** Escape-Rangliste: Entkommene nach Zeit, dann weitester Raum, meiste Lösungen. */
+    const escapeRanking = computed(() =>
+        [...list.value].sort((a, b) => {
+            const ea = a.escape;
+            const eb = b.escape;
+            const ta = ea?.escapedMs ?? Infinity;
+            const tb = eb?.escapedMs ?? Infinity;
+            if (ta !== tb) return ta - tb;
+            if ((eb?.room ?? 0) !== (ea?.room ?? 0)) return (eb?.room ?? 0) - (ea?.room ?? 0);
+            if ((eb?.solved.length ?? 0) !== (ea?.solved.length ?? 0))
+                return (eb?.solved.length ?? 0) - (ea?.solved.length ?? 0);
+            return (ea?.wrong ?? 0) - (eb?.wrong ?? 0);
+        }),
+    );
+
+    /** Noch nicht bewertete Mal-Antworten (zählen bis dahin 0 Punkte). */
+    const openGradings = computed(() =>
+        list.value.reduce(
+            (n, p) =>
+                n +
+                Object.entries(p.answers).filter(
+                    ([qid, a]) => questionMap.get(Number(qid))?.type === 'draw' && a.manualPoints === undefined,
+                ).length,
+            0,
+        ),
+    );
+
     function answeredCount(questionId: number): number {
         return list.value.filter((p) => p.answers[questionId] !== undefined).length;
     }
@@ -150,5 +200,16 @@ export function useTeacherSession(
         for (const k of Object.keys(participants)) delete participants[k];
     }
 
-    return { state, participants, list, leaderboard, answeredCount, setManualPoints, scoreOf, clear };
+    return {
+        state,
+        participants,
+        list,
+        leaderboard,
+        escapeRanking,
+        openGradings,
+        answeredCount,
+        setManualPoints,
+        scoreOf,
+        clear,
+    };
 }

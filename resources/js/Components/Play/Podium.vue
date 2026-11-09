@@ -4,6 +4,8 @@ import { computed } from 'vue';
 interface Entry {
     label: string;
     score: number;
+    /** Optionale Anzeige statt Punkten (z. B. Escape-Zeit) */
+    display?: string;
 }
 
 const props = defineProps<{ entries: Entry[] }>();
@@ -34,7 +36,7 @@ const order = computed(() => {
                 <div class="truncate text-center text-lg font-semibold text-gray-900">
                     {{ col.entry.label }}
                 </div>
-                <div class="text-sm text-gray-500">{{ col.entry.score }}</div>
+                <div class="text-sm text-gray-500">{{ col.entry.display ?? col.entry.score }}</div>
                 <div
                     class="mt-1 flex w-full items-start justify-center rounded-t-lg bg-gradient-to-b from-indigo-400 to-indigo-600 pt-2 font-black text-white"
                     :class="col.height"
@@ -51,7 +53,7 @@ const order = computed(() => {
                 class="flex justify-between rounded-md bg-gray-100 px-4 py-1.5 text-gray-700"
             >
                 <span>{{ i + 4 }}. {{ e.label }}</span>
-                <span class="font-medium">{{ e.score }}</span>
+                <span class="font-medium">{{ e.display ?? e.score }}</span>
             </li>
         </ol>
     </div>

@@ -5,11 +5,15 @@ import axios from 'axios';
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AnswerInput from '@/Components/Play/AnswerInput.vue';
+import EscapePlay from '@/Components/Escape/EscapePlay.vue';
 import { useProctoring } from '@/Composables/useProctoring';
 import { useCountdown } from '@/Composables/useCountdown';
 import { tr, type PublicQuestion } from '@/types/quiz';
 
 interface State {
+    mode?: 'quiz' | 'escape';
+    escape?: any;
+    started_at?: string | null;
     status: string;
     advance_mode: string;
     phase: string | null;
@@ -113,7 +117,7 @@ async function submit() {
         <header class="flex items-center justify-between p-4">
             <div class="text-2xl">{{ participant.label }}</div>
             <div
-                v-if="remaining !== null && state.status === 'active'"
+                v-if="remaining !== null && state.status === 'active' && state.mode !== 'escape'"
                 class="rounded-full bg-white px-4 py-1 text-lg font-bold shadow dark:bg-gray-800"
                 :class="remaining <= 5 ? 'text-red-600' : 'text-gray-800 dark:text-gray-100'"
             >
@@ -131,6 +135,17 @@ async function submit() {
                 <div class="mb-4 text-6xl">🎉</div>
                 <p class="text-xl text-gray-700 dark:text-gray-200">{{ t('play.ended') }}</p>
             </div>
+
+            <!-- Escape-Room (selbstgesteuert) -->
+            <EscapePlay
+                v-else-if="state.mode === 'escape' && state.status !== 'lobby'"
+                :session-key="sessionKey"
+                :participant-token="participant.token"
+                :status="state.status"
+                :started-at="state.started_at ?? null"
+                :remaining="remaining"
+                :initial-escape="props.state.escape ?? null"
+            />
 
             <!-- Lobby -->
             <div v-else-if="!state.question || state.status === 'lobby'" class="text-center">

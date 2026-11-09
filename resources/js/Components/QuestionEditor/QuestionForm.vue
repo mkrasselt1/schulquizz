@@ -141,10 +141,10 @@ function destroy() {
         <!-- Prompt -->
         <FormField :label="t('editor.promptMode')">
             <div class="flex gap-2">
-                <label class="flex items-center gap-1 text-sm">
+                <label class="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-200">
                     <input type="radio" value="text" v-model="state.prompt_mode" /> {{ t('editor.asText') }}
                 </label>
-                <label class="flex items-center gap-1 text-sm">
+                <label class="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-200">
                     <input type="radio" value="image" v-model="state.prompt_mode" /> {{ t('editor.asImage') }}
                 </label>
             </div>
@@ -187,7 +187,7 @@ function destroy() {
             <label v-if="question.type === 'choice'" class="mt-2 flex items-center gap-2 text-sm">
                 <input type="checkbox" v-model="state.config.multiple" /> {{ t('editor.multiple') }}
             </label>
-            <label v-if="question.type === 'choice'" class="flex items-center gap-2 text-sm">
+            <label v-if="question.type === 'choice'" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                 <input type="checkbox" v-model="state.config.randomize" /> {{ t('editor.randomize') }}
             </label>
         </div>
@@ -238,7 +238,7 @@ function destroy() {
             <FormField :label="t('editor.sliderRight')">
                 <input v-model="sliderPole('right').text[baseLocale]" :class="inputClass" />
             </FormField>
-            <label class="flex items-center gap-2 text-sm">
+            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                 <input type="checkbox" v-model="state.config.live_results" /> {{ t('editor.liveResults') }}
             </label>
         </div>
@@ -263,7 +263,7 @@ function destroy() {
             <FormField v-if="!isUnscored" :label="t('editor.points')">
                 <input type="number" min="0" v-model.number="state.points" :class="inputClass" />
             </FormField>
-            <label v-if="!isUnscored" class="flex items-center gap-2 text-sm">
+            <label v-if="!isUnscored" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                 <input type="checkbox" v-model="state.scored" /> {{ t('editor.scored') }}
             </label>
             <FormField :label="t('editor.revealAfter')">

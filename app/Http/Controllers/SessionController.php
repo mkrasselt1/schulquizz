@@ -48,6 +48,7 @@ class SessionController extends Controller
                 'join_method' => $session->join_method,
                 'advance_mode' => $session->advance_mode,
                 'status' => $session->status,
+                'mode' => $session->game->mode,
                 'join_url' => $session->pin
                     ? url('/join')
                     : url('/j/'.$session->game->join_token),
@@ -109,6 +110,15 @@ class SessionController extends Controller
         } else {
             $this->sessions->move($session, ($data['direction'] ?? 'next') === 'prev' ? -1 : 1);
         }
+
+        return back();
+    }
+
+    public function escapeStart(GameSession $session): RedirectResponse
+    {
+        $this->authorizeSession($session);
+        abort_unless($session->game->isEscape(), 422);
+        $this->sessions->startEscape($session);
 
         return back();
     }

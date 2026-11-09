@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Game;
 use App\Models\Question;
 use App\Models\User;
+use App\Support\EscapeRoom;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -31,7 +32,9 @@ class GamePorter
                 'title' => $game->getTranslations('title'),
                 'description' => $game->getTranslations('description'),
                 'base_locale' => $game->base_locale,
+                'mode' => $game->mode ?? 'quiz',
                 'settings' => $game->settings,
+                'escape' => $game->isEscape() ? $this->exportEscape($game) : null,
                 'questions' => $game->questions->map(fn (Question $q) => [
                     'type' => $q->type,
                     'position' => $q->position,
@@ -71,19 +74,67 @@ class GamePorter
             if (! empty($gameData['description'])) {
                 $game->setTranslations('description', (array) $gameData['description']);
             }
+            $game->mode = in_array($gameData['mode'] ?? 'quiz', Game::MODES, true) ? $gameData['mode'] : 'quiz';
             $game->settings = $gameData['settings'] ?? Game::DEFAULT_SETTINGS;
             $game->status = 'draft';
             $game->save();
 
+            $questionIds = [];
             foreach (($gameData['questions'] ?? []) as $qData) {
-                $this->importQuestion($game, $qData);
+                $questionIds[] = $this->importQuestion($game, $qData);
+            }
+
+            if ($game->isEscape() && is_array($gameData['escape'] ?? null)) {
+                $game->escape = EscapeRoom::sanitize($this->importEscape($game, $gameData['escape'], $questionIds), $game);
+                $game->save();
             }
 
             return $game;
         });
     }
 
-    private function importQuestion(Game $game, array $qData): void
+    /**
+     * Escape-Struktur portabel machen: Fragen über ihren Listen-Index statt DB-ID,
+     * Bilder eingebettet.
+     */
+    private function exportEscape(Game $game): array
+    {
+        $escape = EscapeRoom::of($game);
+        $indexById = $game->questions->pluck('id')->flip();
+
+        foreach ($escape['rooms'] as &$room) {
+            $room['image'] = $this->embedImage($room['image_path'] ?? null);
+            unset($room['image_path']);
+            foreach ($room['hotspots'] as &$h) {
+                $h['image'] = $this->embedImage($h['image_path'] ?? null);
+                unset($h['image_path']);
+                $h['question_ref'] = isset($h['question_id']) ? ($indexById[$h['question_id']] ?? null) : null;
+                unset($h['question_id']);
+            }
+            unset($h);
+        }
+        unset($room);
+
+        return $escape;
+    }
+
+    private function importEscape(Game $game, array $escape, array $questionIds): array
+    {
+        foreach (($escape['rooms'] ?? []) as $ri => $room) {
+            $escape['rooms'][$ri]['image_path'] = $this->storeImage($game, $room['image'] ?? null);
+            unset($escape['rooms'][$ri]['image']);
+            foreach (($room['hotspots'] ?? []) as $hi => $h) {
+                $ref = $h['question_ref'] ?? null;
+                $escape['rooms'][$ri]['hotspots'][$hi]['question_id'] = is_int($ref) ? ($questionIds[$ref] ?? null) : null;
+                $escape['rooms'][$ri]['hotspots'][$hi]['image_path'] = $this->storeImage($game, $h['image'] ?? null);
+                unset($escape['rooms'][$ri]['hotspots'][$hi]['image'], $escape['rooms'][$ri]['hotspots'][$hi]['question_ref']);
+            }
+        }
+
+        return $escape;
+    }
+
+    private function importQuestion(Game $game, array $qData): int
     {
         $question = new Question([
             'position' => $qData['position'] ?? 0,
@@ -110,6 +161,8 @@ class GamePorter
             $option->setTranslations('text', (array) ($oData['text'] ?? []));
             $option->save();
         }
+
+        return $question->id;
     }
 
     /**

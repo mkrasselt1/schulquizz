@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Game;
+use App\Services\GamePorter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +25,7 @@ class LibraryController extends Controller
                 'title' => $game->title,
                 'description' => $game->description,
                 'status' => $game->status,
+                'mode' => $game->mode,
                 'join_token' => $game->join_token,
                 'updated_at' => $game->updated_at?->toIso8601String(),
             ]);
@@ -39,9 +41,11 @@ class LibraryController extends Controller
             'title' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:2000'],
             'base_locale' => ['nullable', 'in:de,en'],
+            'mode' => ['nullable', 'in:'.implode(',', Game::MODES)],
         ]);
 
         $game = new Game();
+        $game->mode = $data['mode'] ?? 'quiz';
         $game->user_id = Auth::id();
         $game->base_locale = $data['base_locale'] ?? app()->getLocale();
         $game->title = $data['title'];
@@ -84,20 +88,20 @@ class LibraryController extends Controller
     /**
      * Spiel duplizieren – erzeugt eine eigenständige Kopie mit neuem Join-Token.
      */
-    public function duplicate(Game $game): RedirectResponse
+    public function duplicate(Game $game, GamePorter $porter): RedirectResponse
     {
         $this->authorize('view', $game);
 
-        $copy = $game->replicate(['join_token']);
-        $copy->join_token = Game::generateJoinToken();
-        $copy->status = 'draft';
-        // Titel als "… (Kopie)" in allen vorhandenen Übersetzungen.
-        $titles = $game->getTranslations('title');
+        // Über Export/Import kopieren: so werden Fragen, Antworten, Bilder und die
+        // Escape-Room-Verweise (Fragen-IDs) sauber mitkopiert.
+        $data = $porter->export($game);
+        $titles = (array) ($data['game']['title'] ?? []);
         foreach ($titles as $loc => $val) {
-            $titles[$loc] = $val . ' (Kopie)';
+            $titles[$loc] = $val.' (Kopie)';
         }
-        $copy->setTranslations('title', $titles ?: ['de' => 'Kopie']);
-        $copy->save();
+        $data['game']['title'] = $titles ?: ['de' => 'Kopie'];
+
+        $copy = $porter->import($data, Auth::user());
 
         return redirect()->route('games.edit', $copy)->with('status', 'game-duplicated');
     }

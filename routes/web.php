@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BlocklistController;
 use App\Http\Controllers\BoardController;
+use App\Http\Controllers\EscapeController;
 use App\Http\Controllers\GameEditorController;
 use App\Http\Controllers\GameExportController;
 use App\Http\Controllers\JoinController;
@@ -32,6 +33,8 @@ Route::post('/join', [JoinController::class, 'join'])->middleware('throttle:20,1
 Route::post('/leave', [JoinController::class, 'leave'])->name('join.leave');
 Route::get('/play', [PlayController::class, 'show'])->name('play');
 Route::post('/play/answer', [PlayController::class, 'answer'])->middleware('throttle:120,1')->name('play.answer');
+Route::get('/play/escape', [PlayController::class, 'escape'])->name('play.escape');
+Route::post('/play/escape/check', [PlayController::class, 'escapeCheck'])->middleware('throttle:escape')->name('play.escape.check');
 Route::post('/play/focus', [PlayController::class, 'focus'])->middleware('throttle:120,1')->name('play.focus');
 
 // Tafel/Beamer (öffentlich, unratbarer Key)
@@ -60,6 +63,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/games/{game}/questions', [QuestionController::class, 'store'])->name('questions.store');
     Route::put('/games/{game}/questions/{question}', [QuestionController::class, 'update'])->name('questions.update');
     Route::delete('/games/{game}/questions/{question}', [QuestionController::class, 'destroy'])->name('questions.destroy');
+    Route::put('/games/{game}/escape', [EscapeController::class, 'update'])->name('escape.update');
     Route::post('/games/{game}/questions/reorder', [QuestionController::class, 'reorder'])->name('questions.reorder');
 
     // Medien-Upload (lokal, keine externen Dienste)
@@ -77,6 +81,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/sessions/{session}/resume', [SessionController::class, 'resume'])->name('sessions.resume');
     Route::post('/sessions/{session}/end', [SessionController::class, 'end'])->name('sessions.end');
     Route::post('/sessions/{session}/question', [SessionController::class, 'question'])->name('sessions.question');
+    Route::post('/sessions/{session}/escape/start', [SessionController::class, 'escapeStart'])->name('sessions.escape.start');
     Route::post('/sessions/{session}/phase', [SessionController::class, 'phase'])->name('sessions.phase');
     Route::post('/sessions/{session}/timer', [SessionController::class, 'timer'])->name('sessions.timer');
     Route::post('/sessions/{session}/reveal', [SessionController::class, 'reveal'])->name('sessions.reveal');

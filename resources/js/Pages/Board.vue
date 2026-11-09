@@ -8,8 +8,10 @@ import Podium from '@/Components/Play/Podium.vue';
 import ResultDistribution from '@/Components/Play/ResultDistribution.vue';
 import { useCountdown } from '@/Composables/useCountdown';
 import { tr, type PublicQuestion } from '@/types/quiz';
+import { formatClock } from '@/types/escape';
 
 interface State {
+    mode?: 'quiz' | 'escape';
     status: string;
     phase: string | null;
     question_index: number | null;
@@ -61,7 +63,9 @@ const promptText = computed(() =>
     <div class="flex min-h-screen flex-col bg-gradient-to-br from-indigo-600 to-purple-700 text-white">
         <header class="flex items-center justify-between p-6">
             <h1 class="text-2xl font-bold">{{ gameTitle }}</h1>
-            <div v-if="remaining !== null" class="text-4xl font-black">{{ remaining }}s</div>
+            <div v-if="remaining !== null" class="font-mono text-4xl font-black">
+                {{ state.mode === 'escape' ? formatClock(remaining) : remaining + 's' }}
+            </div>
         </header>
 
         <main class="flex flex-1 flex-col items-center justify-center p-8">
@@ -71,6 +75,14 @@ const promptText = computed(() =>
                 <div class="rounded-3xl bg-white p-8 text-gray-800 shadow-xl">
                     <Podium :entries="podium" />
                 </div>
+            </div>
+
+            <!-- Escape-Room läuft -->
+            <div v-else-if="state.mode === 'escape' && state.status !== 'lobby' && state.status !== 'ended'" class="text-center">
+                <div class="mb-6 text-9xl">🔐</div>
+                <p class="text-4xl font-bold">{{ t('escape.running') }}</p>
+                <p v-if="remaining !== null" class="mt-6 font-mono text-8xl font-black">{{ formatClock(remaining) }}</p>
+                <p v-if="state.status === 'paused'" class="mt-6 text-3xl">⏸ {{ t('escape.paused') }}</p>
             </div>
 
             <!-- Lobby -->

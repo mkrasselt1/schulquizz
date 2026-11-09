@@ -18,8 +18,20 @@ class Game extends Model
         'title',
         'description',
         'base_locale',
+        'mode',
         'settings',
+        'escape',
         'status',
+    ];
+
+    /** Spielmodi: klassisches Live-Quiz oder selbstgesteuerter Escape-Room. */
+    public const MODES = ['quiz', 'escape'];
+
+    /** Fragetypen, die sich als Escape-Room-Rätsel eignen (automatisch prüfbar). */
+    public const ESCAPE_PUZZLE_TYPES = ['choice', 'cloze', 'free_text', 'sort', 'estimate'];
+
+    protected $attributes = [
+        'mode' => 'quiz',
     ];
 
     protected array $translatable = ['title', 'description'];
@@ -28,6 +40,7 @@ class Game extends Model
     {
         return [
             'settings' => 'array',
+            'escape' => 'array',
         ];
     }
 
@@ -83,6 +96,11 @@ class Game extends Model
         return ($this->settings ?? self::DEFAULT_SETTINGS)[$key]
             ?? self::DEFAULT_SETTINGS[$key]
             ?? null;
+    }
+
+    public function isEscape(): bool
+    {
+        return $this->mode === 'escape';
     }
 
     public function getRouteKeyName(): string

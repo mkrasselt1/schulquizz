@@ -6,6 +6,7 @@ use App\Events\SessionEvent;
 use App\Models\Game;
 use App\Models\GameSession;
 use App\Models\Question;
+use App\Support\EscapeRoom;
 use App\Support\PublicQuestion;
 use Illuminate\Support\Carbon;
 
@@ -46,6 +47,24 @@ class SessionService
         $session->save();
 
         return $session;
+    }
+
+    /**
+     * Escape-Room starten: alle Teilnehmenden spielen ab jetzt selbstständig.
+     * Gesamtzeit läuft über question_deadline (verlängerbar wie beim Quiz).
+     */
+    public function startEscape(GameSession $session): void
+    {
+        $limit = EscapeRoom::of($session->game)['time_limit'] ?? null;
+
+        $session->status = 'active';
+        $session->current_question_id = null;
+        $session->current_phase = 'escape';
+        $session->question_started_at = Carbon::now();
+        $session->question_deadline = $limit ? Carbon::now()->addMinutes((int) $limit) : null;
+        $session->save();
+
+        $this->broadcastState($session);
     }
 
     public function pause(GameSession $session): void
@@ -157,21 +176,30 @@ class SessionService
      */
     public function broadcastState(GameSession $session): void
     {
-        event(new SessionEvent($session->session_key, 'state', $this->stateFor($session)));
+        // Raumstruktur nicht mitsenden (Nachrichtengröße) – Clients laden sie per HTTP nach.
+        event(new SessionEvent($session->session_key, 'state', $this->stateFor($session, false)));
     }
 
     /**
      * Öffentlicher Zustand (schülersicher). Auch für Initial-Load von Play/Board nutzbar.
      */
-    public function stateFor(GameSession $session): array
+    public function stateFor(GameSession $session, bool $withEscape = true): array
     {
         $question = $session->currentQuestion;
         $questions = $session->game->questions()->orderBy('position')->get();
         $index = $question ? $questions->search(fn ($q) => $q->id === $question->id) : false;
 
         $withAnswers = $session->current_phase !== 'prompt';
+        $isEscape = $session->game->isEscape();
 
         return [
+            'mode' => $isEscape ? 'escape' : 'quiz',
+            // Raumstruktur erst nach dem Start (keine Vorschau in der Lobby).
+            'escape' => $withEscape && $isEscape && in_array($session->status, ['active', 'paused'], true)
+                ? EscapeRoom::forPlayers($session->game)
+                : null,
+            'escape_room_count' => $isEscape ? count(EscapeRoom::of($session->game)['rooms']) : 0,
+            'started_at' => $session->question_started_at?->toIso8601String(),
             'status' => $session->status,
             'advance_mode' => $session->advance_mode,
             'phase' => $session->current_phase,

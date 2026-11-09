@@ -8,6 +8,8 @@ import Card from '@/Components/ui/Card.vue';
 import Modal from '@/Components/Modal.vue';
 import QrCode from '@/Components/QrCode.vue';
 import QuestionForm from '@/Components/QuestionEditor/QuestionForm.vue';
+import EscapeEditor from '@/Components/Escape/EscapeEditor.vue';
+import type { EscapeConfig } from '@/types/escape';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -20,6 +22,8 @@ interface GameProp {
     base_locale: string;
     status: string;
     settings: Record<string, unknown> | null;
+    mode: 'quiz' | 'escape';
+    escape: EscapeConfig | null;
     join_token: string;
     join_url: string;
 }
@@ -32,6 +36,7 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
+const isEscape = computed(() => props.game.mode === 'escape');
 
 const selectedId = ref<number | null>(props.questions[0]?.id ?? null);
 const selected = computed(() => props.questions.find((q) => q.id === selectedId.value) ?? null);
@@ -121,7 +126,7 @@ function promptPreview(q: Question): string {
             <div class="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-4 lg:px-8">
                 <!-- Linke Spalte: Fragenliste + QR -->
                 <div class="space-y-6 lg:col-span-1">
-                    <Card :title="t('editor.questions')" :padded="false">
+                    <Card :title="isEscape ? t('escape.puzzles') : t('editor.questions')" :padded="false">
                         <template #actions>
                             <div class="relative">
                                 <SecondaryButton type="button" @click="showTypeMenu = !showTypeMenu">
@@ -129,13 +134,13 @@ function promptPreview(q: Question): string {
                                 </SecondaryButton>
                                 <div
                                     v-if="showTypeMenu"
-                                    class="absolute right-0 z-10 mt-1 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 dark:bg-gray-800"
+                                    class="absolute right-0 z-10 mt-1 w-52 rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 dark:bg-gray-700 dark:ring-white/10"
                                 >
                                     <button
                                         v-for="type in questionTypes"
                                         :key="type"
                                         type="button"
-                                        class="block w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                                        class="block w-full px-3 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-600"
                                         @click="addQuestion(type)"
                                     >
                                         {{ QUESTION_TYPE_META[type].icon }} {{ typeLabel(type) }}
@@ -145,7 +150,7 @@ function promptPreview(q: Question): string {
                         </template>
 
                         <div v-if="questions.length === 0" class="p-5 text-sm text-gray-400">
-                            {{ t('editor.noQuestions') }}
+                            {{ isEscape ? t('escape.noPuzzlesYet') : t('editor.noQuestions') }}
                         </div>
                         <ul v-else class="divide-y divide-gray-100 dark:divide-gray-700">
                             <li
@@ -156,7 +161,7 @@ function promptPreview(q: Question): string {
                                 @dragover.prevent
                                 @drop="onDrop(i)"
                                 @click="selectedId = q.id"
-                                class="flex cursor-pointer items-center gap-2 px-4 py-2 text-sm"
+                                class="flex cursor-pointer items-center gap-2 px-4 py-2 text-sm text-gray-800 dark:text-gray-200"
                                 :class="
                                     q.id === selectedId
                                         ? 'bg-indigo-50 dark:bg-indigo-900/40'
@@ -210,7 +215,17 @@ function promptPreview(q: Question): string {
                         </form>
                     </Card>
 
-                    <Card v-if="selected" :title="`${typeLabel(selected.type)}`">
+                    <Card v-if="isEscape && game.escape" :title="'🔐 ' + t('escape.rooms')">
+                        <EscapeEditor
+                            :game-id="game.id"
+                            :base-locale="game.base_locale"
+                            :media-base="mediaBase"
+                            :escape="game.escape"
+                            :questions="questions"
+                        />
+                    </Card>
+
+                    <Card v-if="selected" :title="(isEscape ? '🧩 ' : '') + typeLabel(selected.type)">
                         <QuestionForm
                             :key="selected.id"
                             :question="selected"
@@ -238,27 +253,27 @@ function promptPreview(q: Question): string {
                         {{ $t('control.joinMethod') }}
                     </span>
                     <div class="flex gap-2">
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-200">
                             <input type="radio" value="qr" v-model="startForm.join_method" />
                             {{ $t('control.methodQr') }}
                         </label>
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-200">
                             <input type="radio" value="pin" v-model="startForm.join_method" />
                             {{ $t('control.methodPin') }}
                         </label>
                     </div>
                 </div>
 
-                <div>
+                <div v-if="!isEscape">
                     <span class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                         {{ $t('control.advanceMode') }}
                     </span>
                     <div class="flex gap-2">
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-200">
                             <input type="radio" value="teacher" v-model="startForm.advance_mode" />
                             {{ $t('control.advanceTeacher') }}
                         </label>
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm text-gray-700 dark:text-gray-200">
                             <input type="radio" value="free" v-model="startForm.advance_mode" />
                             {{ $t('control.advanceFree') }}
                         </label>
@@ -266,7 +281,7 @@ function promptPreview(q: Question): string {
                 </div>
 
                 <div>
-                    <label class="flex items-center gap-2 text-sm">
+                    <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
                         <input type="checkbox" v-model="startForm.require_fullscreen" />
                         {{ $t('control.requireFullscreen') }}
                     </label>
