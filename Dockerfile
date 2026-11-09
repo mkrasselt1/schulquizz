@@ -26,8 +26,11 @@ WORKDIR /var/www/html
 # System + PHP extensions (pdo_mysql for MariaDB, pcntl for Reverb, gd/zip for images/export)
 RUN apk add --no-cache libpng-dev libzip-dev icu-dev oniguruma-dev \
     && docker-php-ext-configure gd \
-    && docker-php-ext-install -j"$(nproc)" pdo_mysql pcntl gd zip intl bcmath \
+    && docker-php-ext-install -j"$(nproc)" pdo_mysql pcntl gd zip intl bcmath opcache \
     && rm -rf /var/cache/apk/*
+
+# Upload-Limits (Handyfotos), Opcache
+COPY docker/php.ini /usr/local/etc/php/conf.d/zz-schulquizz.ini
 
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
@@ -72,7 +75,10 @@ ENV APP_ENV=production \
     REVERB_HOST=127.0.0.1 \
     REVERB_PORT=8080 \
     REVERB_SCHEME=http \
-    REVERB_MAX_REQUEST_SIZE=2000000
+    REVERB_MAX_REQUEST_SIZE=2000000 \
+    LOG_CHANNEL=stack \
+    LOG_STACK=stderr,daily \
+    LOG_DAILY_DAYS=14
 
 # Alle persistenten Daten (SQLite-DB, APP_KEY, Uploads) liegen in storage/.
 # → In Plesk NUR diesen einen Ordner als Volume mappen, dann ist alles persistent.

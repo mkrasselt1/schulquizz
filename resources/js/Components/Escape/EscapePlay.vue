@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import AnswerInput from '@/Components/Play/AnswerInput.vue';
 import { tr, type Translations } from '@/types/quiz';
 import { formatClock, HOTSPOT_ICON, type PublicEscape, type PublicHotspot } from '@/types/escape';
+import { serverNow } from '@/lib/serverClock';
 
 /**
  * Escape-Room aus Schülersicht. Selbstgesteuert: Räume erkunden, Hinweise finden,
@@ -128,7 +129,7 @@ async function check() {
             close();
             flash(t('escape.doorOpens'));
         } else if (res.data.result === 'escaped') {
-            progress.escapedMs = props.startedAt ? Date.now() - new Date(props.startedAt).getTime() : 0;
+            progress.escapedMs = props.startedAt ? serverNow() - new Date(props.startedAt).getTime() : 0;
             close();
         }
     } catch (e: any) {

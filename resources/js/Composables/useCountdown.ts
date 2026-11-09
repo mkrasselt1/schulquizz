@@ -1,4 +1,5 @@
 import { onBeforeUnmount, ref, watch } from 'vue';
+import { serverNow } from '@/lib/serverClock';
 
 /**
  * Zählt die verbleibenden Sekunden bis zu einer ISO-Deadline herunter.
@@ -14,7 +15,7 @@ export function useCountdown(deadline: () => string | null) {
             remaining.value = null;
             return;
         }
-        const ms = new Date(iso).getTime() - Date.now();
+        const ms = new Date(iso).getTime() - serverNow();
         remaining.value = Math.max(0, Math.ceil(ms / 1000));
     }
 

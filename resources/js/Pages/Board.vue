@@ -9,6 +9,7 @@ import ResultDistribution from '@/Components/Play/ResultDistribution.vue';
 import { useCountdown } from '@/Composables/useCountdown';
 import { tr, type PublicQuestion } from '@/types/quiz';
 import { formatClock } from '@/types/escape';
+import { syncServerClock } from '@/lib/serverClock';
 
 interface State {
     mode?: 'quiz' | 'escape';
@@ -37,14 +38,20 @@ const podium = ref<any[] | null>(null);
 const { remaining } = useCountdown(() => state.deadline);
 const channelName = `board.${props.sessionKey}`;
 
+syncServerClock((props.state as any).server_time);
+
 onMounted(() => {
     echo()
         .channel(channelName)
         .listen('.state', (p: State) => {
+            syncServerClock((p as any).server_time);
             Object.assign(state, p);
             distribution.value = null;
         })
-        .listen('.timer', (p: any) => (state.deadline = p.deadline))
+        .listen('.timer', (p: any) => {
+            syncServerClock(p.server_time);
+            state.deadline = p.deadline;
+        })
         .listen('.reveal', () => {})
         .listen('.board_distribution', (p: any) => (distribution.value = p))
         .listen('.board_podium', (p: any) => (podium.value = p.entries ?? []))

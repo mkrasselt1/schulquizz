@@ -2,6 +2,7 @@ import { echo } from '@laravel/echo-vue';
 import { computed, onBeforeUnmount, onMounted, reactive } from 'vue';
 import type { Question } from '@/types/quiz';
 import { grade, points, type Correctness } from '@/lib/scoring';
+import { syncServerClock } from '@/lib/serverClock';
 
 export interface ParticipantAnswer {
     answer: any;
@@ -75,8 +76,14 @@ export function useTeacherSession(
     function bindControl() {
         echo()
             .channel(channelName)
-            .listen('.state', (p: any) => Object.assign(state, p))
-            .listen('.timer', (p: any) => (state.deadline = p.deadline))
+            .listen('.state', (p: any) => {
+                syncServerClock(p.server_time);
+                Object.assign(state, p);
+            })
+            .listen('.timer', (p: any) => {
+                syncServerClock(p.server_time);
+                state.deadline = p.deadline;
+            })
             .listen('.ended', () => (state.status = 'ended'));
     }
 
@@ -127,6 +134,8 @@ export function useTeacherSession(
                 persist();
             });
     }
+
+    syncServerClock(initialState.server_time);
 
     onMounted(() => {
         bindControl();

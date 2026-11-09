@@ -133,6 +133,12 @@ class SessionService
         }
     }
 
+    /** Serverzeit mit Millisekunden – Clients gleichen damit ihre Uhr ab. */
+    public static function serverTime(): string
+    {
+        return Carbon::now()->format('Y-m-d\TH:i:s.vP');
+    }
+
     public function setTimer(GameSession $session, int $seconds): void
     {
         $session->update([
@@ -140,6 +146,7 @@ class SessionService
         ]);
         event(new SessionEvent($session->session_key, 'timer', [
             'deadline' => $session->question_deadline?->toIso8601String(),
+            'server_time' => self::serverTime(),
         ]));
     }
 
@@ -151,6 +158,7 @@ class SessionService
         $session->update(['question_deadline' => $base->addSeconds($seconds)]);
         event(new SessionEvent($session->session_key, 'timer', [
             'deadline' => $session->question_deadline?->toIso8601String(),
+            'server_time' => self::serverTime(),
         ]));
     }
 
@@ -193,6 +201,7 @@ class SessionService
         $isEscape = $session->game->isEscape();
 
         return [
+            'server_time' => self::serverTime(),
             'mode' => $isEscape ? 'escape' : 'quiz',
             // Raumstruktur erst nach dem Start (keine Vorschau in der Lobby).
             'escape' => $withEscape && $isEscape && in_array($session->status, ['active', 'paused'], true)

@@ -29,13 +29,13 @@ Route::get('/dashboard', fn () => redirect()->route('library'))
 Route::get('/join', [JoinController::class, 'viaPin'])->name('join.pin');
 Route::get('/j/{token}', [JoinController::class, 'viaToken'])->name('join.token');
 Route::get('/j/{token}/status', [JoinController::class, 'status'])->name('join.status');
-Route::post('/join', [JoinController::class, 'join'])->middleware('throttle:20,1')->name('join.submit');
+Route::post('/join', [JoinController::class, 'join'])->middleware('throttle:join')->name('join.submit');
 Route::post('/leave', [JoinController::class, 'leave'])->name('join.leave');
 Route::get('/play', [PlayController::class, 'show'])->name('play');
-Route::post('/play/answer', [PlayController::class, 'answer'])->middleware('throttle:120,1')->name('play.answer');
+Route::post('/play/answer', [PlayController::class, 'answer'])->middleware('throttle:play')->name('play.answer');
 Route::get('/play/escape', [PlayController::class, 'escape'])->name('play.escape');
 Route::post('/play/escape/check', [PlayController::class, 'escapeCheck'])->middleware('throttle:escape')->name('play.escape.check');
-Route::post('/play/focus', [PlayController::class, 'focus'])->middleware('throttle:120,1')->name('play.focus');
+Route::post('/play/focus', [PlayController::class, 'focus'])->middleware('throttle:play')->name('play.focus');
 
 // Tafel/Beamer (öffentlich, unratbarer Key)
 Route::get('/board/{key}', [BoardController::class, 'show'])->name('board');

@@ -6,6 +6,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AnswerInput from '@/Components/Play/AnswerInput.vue';
 import EscapePlay from '@/Components/Escape/EscapePlay.vue';
+import { syncServerClock } from '@/lib/serverClock';
 import { useProctoring } from '@/Composables/useProctoring';
 import { useCountdown } from '@/Composables/useCountdown';
 import { tr, type PublicQuestion } from '@/types/quiz';
@@ -14,6 +15,7 @@ interface State {
     mode?: 'quiz' | 'escape';
     escape?: any;
     started_at?: string | null;
+    server_time?: string;
     status: string;
     advance_mode: string;
     phase: string | null;
@@ -53,12 +55,15 @@ function resetForQuestion() {
     questionShownAt = Date.now();
 }
 
+syncServerClock(props.state.server_time);
+
 onMounted(() => {
     if (state.question) questionShownAt = Date.now();
 
     const channel = echo().channel(channelName);
     channel
         .listen('.state', (payload: State) => {
+            syncServerClock(payload.server_time);
             const changedQuestion = payload.question?.id !== state.question?.id;
             const changedPhase = payload.phase !== state.phase;
             Object.assign(state, payload);
@@ -66,7 +71,8 @@ onMounted(() => {
                 resetForQuestion();
             }
         })
-        .listen('.timer', (p: { deadline: string }) => {
+        .listen('.timer', (p: { deadline: string; server_time?: string }) => {
+            syncServerClock(p.server_time);
             state.deadline = p.deadline;
         })
         .listen('.reveal', (p: any) => {

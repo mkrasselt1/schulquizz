@@ -59,6 +59,11 @@ class Game extends Model
 
     protected static function booted(): void
     {
+        // Hochgeladene Bilder des Spiels mitlöschen (sonst bleiben sie für immer liegen).
+        static::deleted(function (Game $game): void {
+            \Illuminate\Support\Facades\Storage::disk('public')->deleteDirectory("game-images/{$game->id}");
+        });
+
         static::creating(function (Game $game): void {
             if (empty($game->join_token)) {
                 $game->join_token = static::generateJoinToken();
