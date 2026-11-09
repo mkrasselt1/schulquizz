@@ -32,9 +32,11 @@ return [
 
         'reverb' => [
             'driver' => 'reverb',
-            'key' => env('REVERB_APP_KEY'),
-            'secret' => env('REVERB_APP_SECRET'),
-            'app_id' => env('REVERB_APP_ID'),
+            // Leere Strings statt null: ohne Reverb-Werte sollen Artisan-Befehle (z. B. key:generate)
+            // nicht beim Anlegen des Broadcasters abstürzen.
+            'key' => env('REVERB_APP_KEY', ''),
+            'secret' => env('REVERB_APP_SECRET', ''),
+            'app_id' => env('REVERB_APP_ID', ''),
             'options' => [
                 'host' => env('REVERB_HOST'),
                 'port' => env('REVERB_PORT', 443),
