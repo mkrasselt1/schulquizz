@@ -7,6 +7,9 @@ import { createApp, DefineComponent, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { configureEcho } from '@laravel/echo-vue';
 import { i18n } from './i18n';
+import { pruneLocalData } from './lib/realtime';
+
+pruneLocalData();
 
 // WebSocket-Verbindung URL-agnostisch: nimmt die Domain der Seite, sofern keine
 // VITE_REVERB_*-Werte gesetzt sind. So läuft ein einziges Image an jeder Domain.

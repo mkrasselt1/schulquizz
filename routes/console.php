@@ -12,3 +12,4 @@ Artisan::command('inspire', function () {
 // Bilder und abgelaufene Cache-Einträge löschen.
 Schedule::command('schulquizz:cleanup')->hourly()->withoutOverlapping();
 Schedule::command('queue:prune-failed --hours=168')->daily();
+Schedule::command('passport:purge')->daily();

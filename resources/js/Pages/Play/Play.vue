@@ -7,7 +7,7 @@ import { useI18n } from 'vue-i18n';
 import AnswerInput from '@/Components/Play/AnswerInput.vue';
 import EscapePlay from '@/Components/Escape/EscapePlay.vue';
 import { syncServerClock } from '@/lib/serverClock';
-import { onResync, safeGet, safeSet } from '@/lib/realtime';
+import { forgetOtherGames, onResync, safeGet, safeSet } from '@/lib/realtime';
 import { useProctoring } from '@/Composables/useProctoring';
 import { useCountdown } from '@/Composables/useCountdown';
 import { tr, type PublicQuestion } from '@/types/quiz';
@@ -45,6 +45,7 @@ const { away, fullscreen, requestFullscreen } = useProctoring();
 const { remaining } = useCountdown(() => state.deadline);
 
 // Reconnect-Daten sichern.
+forgetOtherGames(props.sessionKey);
 safeSet('schulquizz.participant', JSON.stringify(props.participant));
 
 // Letzte abgegebene Antwort merken: übersteht Neuladen (kein Doppel-Antworten) und kann

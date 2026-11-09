@@ -43,7 +43,13 @@ live im Leitstand verfolgt, wird nirgends festgehalten.
 
 **Auf dem Schülergerät** (`localStorage`/Cookie) liegen nur: Teilnehmer-Pseudonym, die zuletzt
 abgegebene Antwort der aktuellen Frage bzw. der Escape-Fortschritt – damit ein Neuladen nichts
-kaputt macht. Die serverseitige Teilnehmer-Session ist ein Cookie ohne Datenbankeintrag zu Antworten.
+kaputt macht. Beim Beitritt zu einem neuen Spiel werden Daten früherer Spiele vom Gerät gelöscht,
+nach 2 Tagen ohne Spiel alle Schülerdaten auf dem Gerät.
+
+**Sitzungen** (Teilnehmer wie Lehrkräfte) liegen ausschließlich im verschlüsselten Sitzungs-Cookie
+(`SESSION_DRIVER=cookie`), nicht in der Datenbank. Es werden dafür weder Namen noch IP-Adressen auf
+dem Server gespeichert. (Stellt ein Betreiber selbst auf Datenbank-Sitzungen um, löscht der
+Aufräumlauf abgelaufene Einträge stündlich.)
 
 ## Wie lange wird was aufbewahrt?
 
@@ -52,12 +58,19 @@ Ein stündlicher Aufräumlauf auf dem Server:
 - löscht beendete Spiel-Sitzungen (enthalten keine Schülerdaten) nach 30 Tagen,
 - löscht nicht mehr verwendete Bilder und abgelaufene Cache-Einträge (z. B. Emoji-Vergabe).
 
-Server-Logs (Fehler) werden 14 Tage aufbewahrt; Zugriffs-Logs des Webservers sind abgeschaltet.
+Täglich werden außerdem abgelaufene KI-Assistenten-Tokens und fehlgeschlagene Hintergrund-Jobs
+(nach 7 Tagen) gelöscht.
+
+Fehler-Logs (`storage/logs`) werden täglich rotiert und nach 14 Tagen gelöscht; die
+Docker-Compose-Varianten begrenzen zusätzlich die Container-Logs (5 × 10 MB). Zugriffs-Logs von
+Webserver (nginx) und PHP-FPM sind abgeschaltet – es werden keine IP-Adressen oder aufgerufenen
+Beitritts-Links protokolliert.
 Im Lehrer-Browser werden Live-Daten älterer Spiele nach 2 Tagen entfernt.
 
 ## Was wird NICHT gemacht?
 
-- Keine externen Dienste, CDNs, Web-Fonts oder Analyse-/Tracking-Tools.
+- Keine externen Dienste, CDNs, Web-Fonts oder Analyse-/Tracking-Tools – technisch erzwungen durch
+  eine Content-Security-Policy, die dem Browser nur Inhalte von der eigenen Domain erlaubt.
 - Keine Werbung, kein Profiling.
 - Keine Weitergabe an Dritte.
 - Kein Redis/Cloud-Broadcasting – der WebSocket-Server (Laravel Reverb) läuft lokal.
@@ -72,12 +85,15 @@ regelt die Schule; der Zugriff lässt sich im Profil jederzeit entziehen.
 
 - Transportverschlüsselung (TLS) im Betrieb; gehashte Passwörter (bcrypt).
 - Signierte, flüchtige Teilnehmer-Tokens (Cookie-Session), keine dauerhaften Kennungen.
-- Rate-Limiting auf Beitritt/Antworten (pro Gerät, damit Klassen hinter einer Schul-IP spielen können).
+- Rate-Limiting auf Beitritt/Antworten (pro Gerät, damit Klassen hinter einer Schul-IP spielen können)
+  und auf die Registrierung; weitergeleitete IP-Angaben werden nur von Proxys aus privaten Netzen akzeptiert.
 - Antworten werden nur für die gerade offene Frage angenommen; Escape-Quittungen sind fälschungssicher signiert.
-- Sicherheits-Header, interne WebSocket-Schnittstelle nicht öffentlich erreichbar, Schlüssel je Installation.
+- Sicherheits-Header inkl. Content-Security-Policy; die Sende-Schnittstelle des WebSocket-Servers
+  ist nur intern erreichbar; Schlüssel (App-Key, WebSocket-Secret, OAuth) je Installation zufällig erzeugt.
 - Optional: Registrierung neuer Lehrkraft-Konten nur mit Code oder ganz abgeschaltet.
-- Wort-Sperrliste gegen unangemessene Namen/Antworten (Basisliste + pro Lehrkraft erweiterbar),
-  als reiner Live-Filter ohne Speicherung geprüfter Eingaben.
+- Wort-Sperrliste gegen unangemessene Namen/Antworten (Basisliste + pro Lehrkraft erweiterbar):
+  gesperrte Namen werden abgelehnt, Treffer in Text-Antworten vor der Weiterleitung durch „***“
+  ersetzt – als reiner Live-Filter ohne Speicherung geprüfter Eingaben.
 
 ## Betrieb / Verantwortlichkeit
 

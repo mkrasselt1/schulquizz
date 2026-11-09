@@ -31,6 +31,10 @@ RUN apk add --no-cache libpng-dev libzip-dev icu-dev oniguruma-dev su-exec \
 
 # Upload-Limits (Handyfotos), Opcache
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-schulquizz.ini
+# Datensparsam: kein php-fpm-Zugriffslog (das offizielle Image schreibt jede Anfrage ins Container-Log).
+RUN printf '[www]
+access.log = /dev/null
+' > /usr/local/etc/php-fpm.d/zz-schulquizz.conf
 
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
@@ -66,7 +70,7 @@ ENV APP_ENV=production \
     DB_DATABASE=/var/www/html/storage/database.sqlite \
     QUEUE_CONNECTION=database \
     CACHE_STORE=database \
-    SESSION_DRIVER=database \
+    SESSION_DRIVER=cookie \
     BROADCAST_CONNECTION=reverb \
     REVERB_APP_ID=schulquizz \
     REVERB_APP_KEY=schulquizz \

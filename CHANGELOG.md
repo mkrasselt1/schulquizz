@@ -3,6 +3,23 @@
 Versionen = Git-Tags = Docker-Image-Tags auf Docker Hub (`mkrasselt1/schulquizz:<version>`).
 `latest` zeigt immer auf die neueste Version.
 
+## dev-0.28 – Versprechen technisch abgesichert
+- **Sitzungen nur noch im verschlüsselten Cookie** statt in der Datenbank – Schülernamen, IPs und
+  User-Agents landen nicht mehr in der Tabelle `sessions`. (Alte DB-Sitzungen räumt der Aufräumlauf weg.
+  Einmalige Folge des Updates: alle müssen sich neu anmelden bzw. neu beitreten.)
+- **Keine Zugriffslogs mehr:** auch php-fpm (Image) und nginx in der Compose-Variante; Fehler-Logs
+  überall 14 Tage, Container-Logs in Compose begrenzt.
+- **Content-Security-Policy** + Sicherheits-Header für jede Antwort (erzwingt „keine externen Dienste“);
+  eigener `/up`-Health-Check statt Laravels Seite mit CDN-Schrift.
+- **Wort-Sperrliste auch für Text-Antworten** (Treffer werden live durch „***“ ersetzt).
+- Browser-Speicher: Schülerdaten früherer Spiele werden beim Beitritt gelöscht, alles nach 2 Tagen
+  ohne Spiel; Lehrer-Live-Daten > 2 Tage bei jedem App-Start.
+- Compose: Reverb-Sende-API `/apps` und Port 8080 nicht mehr öffentlich, Secret wird erzeugt statt
+  `change-me`; `docker-compose.hub.yml` nutzt jetzt das All-in-one-Image (keine doppelten Dienste).
+- Standalone: Reverb lauscht nur auf 127.0.0.1. Weitergeleitete IPs nur von Proxys aus privaten Netzen
+  (`TRUSTED_PROXIES`), Registrierung gedrosselt, abgelaufene OAuth-Tokens werden täglich gelöscht.
+- PHP ≥ 8.4 (composer.json), ungenutzte Laravel-Willkommensseite entfernt.
+
 ## dev-0.27
 - **Export/Import mit Bildern abgesichert:** Raum- und Hinweisbilder (auch SVG), Fragen- und
   Antwortbilder landen sicher in der `.quiz.json` und werden beim Import wiederhergestellt.

@@ -48,7 +48,7 @@ if [ "${CONTAINER_ROLE:-app}" = "app" ]; then
     fi
 
     # Reverb-Secret pro Installation (das Default im Image ist öffentlich bekannt).
-    if [ -z "${REVERB_APP_SECRET}" ] || [ "${REVERB_APP_SECRET}" = "schulquizz-secret" ]; then
+    if [ -z "${REVERB_APP_SECRET}" ] || { [ "${REVERB_APP_SECRET}" = "schulquizz-secret" ] || [ "${REVERB_APP_SECRET}" = "change-me" ]; }; then
         if [ ! -f "$REVERB_SECRET_FILE" ]; then
             head -c 24 /dev/urandom | base64 | tr -d '/+=' > "$REVERB_SECRET_FILE"
             log "Neues Reverb-Secret erzeugt."
@@ -57,12 +57,28 @@ if [ "${CONTAINER_ROLE:-app}" = "app" ]; then
     chown www-data:www-data "$KEYFILE" "$REVERB_SECRET_FILE" 2>/dev/null || true
 fi
 
+# Andere Rollen (Compose: reverb/queue/scheduler): kurz warten, bis der App-Container die
+# Schlüssel im gemeinsamen Storage-Volume erzeugt hat – sonst liefen sie mit anderem Secret.
+if [ "${CONTAINER_ROLE:-app}" != "app" ]; then
+    keys_missing() {
+        if [ -z "${APP_KEY}" ] && [ ! -f "$KEYFILE" ]; then return 0; fi
+        if [ -z "${REVERB_APP_SECRET}" ] && [ ! -f "$REVERB_SECRET_FILE" ]; then return 0; fi
+        return 1
+    }
+    i=0
+    while keys_missing; do
+        i=$((i + 1))
+        [ "$i" -ge 60 ] && break
+        sleep 2
+    done
+fi
+
 # Gespeicherte Schlüssel für ALLE Rollen laden (Queue/Scheduler brauchen denselben APP_KEY).
 if [ -z "${APP_KEY}" ] && [ -f "$KEYFILE" ]; then
     APP_KEY="$(cat "$KEYFILE")"
     export APP_KEY
 fi
-if { [ -z "${REVERB_APP_SECRET}" ] || [ "${REVERB_APP_SECRET}" = "schulquizz-secret" ]; } && [ -f "$REVERB_SECRET_FILE" ]; then
+if { [ -z "${REVERB_APP_SECRET}" ] || { [ "${REVERB_APP_SECRET}" = "schulquizz-secret" ] || [ "${REVERB_APP_SECRET}" = "change-me" ]; }; } && [ -f "$REVERB_SECRET_FILE" ]; then
     REVERB_APP_SECRET="$(cat "$REVERB_SECRET_FILE")"
     export REVERB_APP_SECRET
 fi

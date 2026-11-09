@@ -51,8 +51,9 @@ class Cleanup extends Command
         // 3) Unbenutzte Bilder
         [$dirs, $files] = $this->cleanImages($dry, (int) $this->option('image-grace-hours'));
 
-        // 4) Abgelaufene Cache-Einträge
-        $cache = $dry ? 0 : $this->pruneCache();
+        // 4) Abgelaufene Cache-Einträge (+ abgelaufene DB-Sitzungen, falls jemand
+        //    SESSION_DRIVER=database gesetzt hat – sie enthielten Schülernamen und IPs)
+        $cache = $dry ? 0 : $this->pruneCache() + $this->pruneSessions();
 
         $this->info(sprintf(
             '%sSessions beendet: %d · alte Sessions gelöscht: %d · Bild-Ordner gelöscht: %d · Bilder gelöscht: %d · Cache-Einträge: %d',
@@ -123,6 +124,18 @@ class Cleanup extends Command
         }
 
         return array_values(array_filter($paths, 'is_string'));
+    }
+
+    private function pruneSessions(): int
+    {
+        $table = config('session.table', 'sessions');
+        if (config('session.driver') !== 'database' || ! Schema::hasTable($table)) {
+            return 0;
+        }
+
+        return DB::table($table)
+            ->where('last_activity', '<', Carbon::now()->subMinutes((int) config('session.lifetime', 120))->getTimestamp())
+            ->delete();
     }
 
     private function pruneCache(): int

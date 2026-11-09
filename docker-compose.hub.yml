@@ -1,15 +1,23 @@
-# Vollständiger Stack aus dem bereits gepushten Docker-Hub-Image – OHNE Neu-Build.
+# Fertiges Docker-Hub-Image (All-in-one: nginx, PHP, Reverb, Queue, Scheduler) + MariaDB –
+# OHNE Neu-Build.
 #
-# Verwendung (auf dem Host oder in Plesk, sofern docker-compose unterstützt):
-#   1. .env anlegen: cp .env.docker.example .env  (APP_KEY/APP_URL/DB-Passwörter setzen)
+# Verwendung:
+#   1. .env anlegen: cp .env.docker.example .env  (APP_URL/DB-Passwörter setzen)
 #   2. docker compose -f docker-compose.hub.yml up -d
+#   → App unter http://localhost:8000 (per Reverse-Proxy mit HTTPS ausliefern)
 #
-# Image-Tag bei Bedarf anpassen (IMAGE env oder hier direkt).
+# Image-Tag bei Bedarf anpassen (IMAGE env, z. B. IMAGE=mkrasselt1/schulquizz:v1.0).
+
+x-logging: &logging
+  # Container-Logs begrenzen (Fehler-Logs nicht unbegrenzt aufbewahren)
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
 
 services:
   app:
     image: ${IMAGE:-mkrasselt1/schulquizz:latest}
     restart: unless-stopped
+    logging: *logging
     depends_on:
       mariadb:
         condition: service_healthy
@@ -18,72 +26,21 @@ services:
       DB_CONNECTION: mysql
       DB_HOST: mariadb
       DB_PORT: 3306
-    volumes:
-      - app-storage:/var/www/html/storage
-      - public-data:/var/www/html/public
-    networks: [schulquizz]
-
-  reverb:
-    image: ${IMAGE:-mkrasselt1/schulquizz:latest}
-    restart: unless-stopped
-    command: php artisan reverb:start --host=0.0.0.0 --port=8080
-    depends_on: [app]
-    env_file: .env
-    environment:
-      CONTAINER_ROLE: reverb
-      DB_CONNECTION: mysql
-      DB_HOST: mariadb
-      DB_PORT: 3306
+      # Reverb läuft im selben Container und wird nur intern angesprochen.
+      REVERB_HOST: 127.0.0.1
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
     ports:
-      - "8080:8080"
-    networks: [schulquizz]
-
-  queue:
-    image: ${IMAGE:-mkrasselt1/schulquizz:latest}
-    restart: unless-stopped
-    command: php artisan queue:work --tries=3 --sleep=1
-    depends_on: [app]
-    env_file: .env
-    environment:
-      CONTAINER_ROLE: queue
-      DB_CONNECTION: mysql
-      DB_HOST: mariadb
-      DB_PORT: 3306
+      # Nur lokal binden – davor gehört ein Reverse-Proxy mit HTTPS.
+      - "127.0.0.1:8000:80"
     volumes:
       - app-storage:/var/www/html/storage
-    networks: [schulquizz]
-
-  scheduler:
-    image: ${IMAGE:-mkrasselt1/schulquizz:latest}
-    restart: unless-stopped
-    command: php artisan schedule:work
-    depends_on: [app]
-    env_file: .env
-    environment:
-      CONTAINER_ROLE: scheduler
-      DB_CONNECTION: mysql
-      DB_HOST: mariadb
-      DB_PORT: 3306
-    volumes:
-      - app-storage:/var/www/html/storage
-    networks: [schulquizz]
-
-  web:
-    image: nginx:1.27-alpine
-    restart: unless-stopped
-    depends_on: [app]
-    ports:
-      - "8000:80"
-    volumes:
-      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - public-data:/var/www/html/public:ro
-      # Uploads: public/storage ist ein Symlink nach storage/app/public
-      - app-storage:/var/www/html/storage:ro
     networks: [schulquizz]
 
   mariadb:
     image: mariadb:11
     restart: unless-stopped
+    logging: *logging
     environment:
       MARIADB_DATABASE: ${DB_DATABASE:-schulquizz}
       MARIADB_USER: ${DB_USERNAME:-schulquizz}
@@ -101,7 +58,6 @@ services:
 volumes:
   db-data:
   app-storage:
-  public-data:
 
 networks:
   schulquizz:

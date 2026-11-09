@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\SessionEvent;
 use App\Models\GameSession;
+use App\Services\ModerationService;
 use App\Services\SessionService;
 use App\Support\AnswerGrader;
 use App\Support\CompletionCode;
@@ -55,6 +56,18 @@ class PlayController extends Controller
             'sessionKey' => $session->session_key,
             'state' => $state,
         ]);
+    }
+
+    /**
+     * Wort-Sperrliste auf Text-Antworten (Freitext, Lückentext) anwenden: Treffer werden vor
+     * dem Weiterleiten an Lehrkraft/Tafel durch „***“ ersetzt. Nichts wird gespeichert.
+     */
+    private function maskBlocked(mixed $answer, ?int $userId): mixed
+    {
+        $moderation = app(ModerationService::class);
+        $mask = fn ($v) => is_string($v) && ! $moderation->isAllowed($v, $userId) ? '***' : $v;
+
+        return is_array($answer) ? array_map($mask, $answer) : $mask($answer);
     }
 
     /**
@@ -139,7 +152,7 @@ class PlayController extends Controller
                 'label' => $participant['label'],
                 'kind' => $participant['kind'],
                 'question_id' => $data['question_id'],
-                'answer' => $data['answer'] ?? null,
+                'answer' => $this->maskBlocked($data['answer'] ?? null, $session->user_id),
                 'response_ms' => $responseMs,
             ],
             scope: 'teacher',

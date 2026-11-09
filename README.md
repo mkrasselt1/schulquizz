@@ -26,7 +26,7 @@ i18n DE/EN.
 ## Variante A – Ein Container (empfohlen, z. B. Plesk)
 
 Fertiges Image von Docker Hub: **`mkrasselt1/schulquizz`** – Tags `latest` (neueste Version) oder
-eine feste Version wie `dev-0.23` (siehe [CHANGELOG.md](CHANGELOG.md)). Im Container laufen
+eine feste Version wie `v1.0.0` (siehe [CHANGELOG.md](CHANGELOG.md)). Im Container laufen
 Webserver, PHP, WebSocket-Server, Queue und Scheduler; ohne weitere Angaben nutzt er eine interne
 SQLite-Datenbank.
 
@@ -45,8 +45,8 @@ docker cp <container>:/var/www/html/storage/. /var/docker/schulquizz/storage/
 chown -R 82:82 /var/docker/schulquizz/storage   # 82 = www-data im Image
 ```
 
-**2. Port:** Container-Port `80` auf einen Host-Port legen und per Reverse-Proxy (Plesk) mit HTTPS
-ausliefern. WebSockets laufen über denselben Port (Pfad `/app`) – im Proxy muss WebSocket-Support
+**2. Port:** Container-Port `80` auf einen Host-Port legen (am besten nur an `127.0.0.1` binden) und
+per Reverse-Proxy (Plesk) mit HTTPS ausliefern. WebSockets laufen über denselben Port (Pfad `/app`) – im Proxy muss WebSocket-Support
 aktiv sein.
 
 **3. Umgebungsvariablen** (mindestens):
@@ -58,6 +58,7 @@ aktiv sein.
 | `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | | sonst verschickt „Passwort vergessen“ nichts |
 | `REGISTRATION_CODE` | `lehrerzimmer` | optional: Registrieren nur mit Code |
 | `REGISTRATION_ENABLED` | `false` | optional: Registrierung ganz aus |
+| `TRUSTED_PROXIES` | `172.17.0.1` | optional: nur nötig, wenn der Reverse-Proxy **nicht** aus einem privaten Netz kommt (Standard: private Netze) |
 
 `APP_KEY`, das Reverb-Secret und die OAuth-Schlüssel erzeugt der Container beim ersten Start selbst
 und legt sie im Volume ab.
@@ -72,7 +73,8 @@ erreichbar, z. B. die Docker-Bridge `172.17.0.1`), `DB_PORT=3306`, `DB_DATABASE`
 
 **Betrieb:**
 - Gesundheitscheck eingebaut (Web + WebSocket); abgestürzte Dienste startet der Container neu.
-- Logs: im Container-Log (Plesk → Docker → Container → Log); zusätzlich `storage/logs`, 14 Tage.
+- Logs: nur Fehler, im Container-Log (Plesk → Docker → Container → Log) und in `storage/logs`
+  (14 Tage). Zugriffslogs sind aus. Tipp: Log-Größe des Containers in Docker begrenzen.
 - Stündliches Aufräumen: verwaiste Spiele (8 h ohne Aktivität) beenden, beendete Spiele nach
   30 Tagen, unbenutzte Bilder, abgelaufene Cache-Einträge löschen.
 - Backup: den Volume-Ordner sichern (bei externer MariaDB zusätzlich die Datenbank).
@@ -80,13 +82,15 @@ erreichbar, z. B. die Docker-Bridge `172.17.0.1`), `DB_PORT=3306`, `DB_DATABASE`
 ## Variante B – Docker Compose (mehrere Container)
 
 ```bash
-cp .env.docker.example .env    # Domain/Passwörter anpassen (APP_KEY kann leer bleiben)
-docker compose up -d --build                         # selbst bauen
-docker compose -f docker-compose.hub.yml up -d       # oder fertiges Image von Docker Hub
+cp .env.docker.example .env    # Domain/Passwörter anpassen (APP_KEY/Reverb-Secret können leer bleiben)
+docker compose -f docker-compose.hub.yml up -d       # fertiges Image von Docker Hub + MariaDB
+docker compose up -d --build                         # oder selbst bauen, je Dienst ein Container
 ```
 
-Container: `app` (PHP-FPM), `web` (nginx), `reverb` (WebSockets), `queue` (Worker),
-`scheduler` (Aufräumen), `mariadb`. App unter <http://localhost:8000>, Reverb unter Port `8080`.
+`docker-compose.hub.yml`: das All-in-one-Image (wie Variante A) plus `mariadb`, App unter
+<http://127.0.0.1:8000>. `docker-compose.yml`: `app` (PHP-FPM), `web` (nginx), `reverb`
+(WebSockets, nur intern), `queue`, `scheduler`, `mariadb`; App unter <http://localhost:8000>.
+WebSockets laufen in beiden Fällen über denselben Port (Pfad `/app`).
 
 MariaDB speichert in das benannte Volume `db-data`. Ohne Persistenz (Test/Kiosk):
 
