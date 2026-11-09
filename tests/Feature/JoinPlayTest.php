@@ -81,6 +81,7 @@ class JoinPlayTest extends TestCase
         Event::fake([SessionEvent::class]);
         [$game, $session] = $this->gameWithSession(true, 'qr');
         $question = QuestionDefaults::create($game, 'choice', 0);
+        app(SessionService::class)->showQuestion($session, $question);
 
         // Beitreten (setzt Teilnehmer-Session).
         $this->post('/join', ['join_token' => $game->join_token, 'display_type' => 'emoji']);

@@ -17,6 +17,7 @@ class GameSession extends Model
         'settings',
         'question_started_at',
         'question_deadline',
+        'paused_remaining_ms',
     ];
 
     protected function casts(): array

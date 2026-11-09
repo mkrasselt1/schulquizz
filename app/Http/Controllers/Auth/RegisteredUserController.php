@@ -21,7 +21,11 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Auth/Register');
+        abort_unless(config('schulquizz.registration_enabled'), 404);
+
+        return Inertia::render('Auth/Register', [
+            'requiresCode' => filled(config('schulquizz.registration_code')),
+        ]);
     }
 
     /**
@@ -31,7 +35,17 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        abort_unless(config('schulquizz.registration_enabled'), 404);
+
+        $code = (string) config('schulquizz.registration_code');
         $request->validate([
+            'registration_code' => $code !== ''
+                ? ['required', 'string', function ($attr, $value, $fail) use ($code) {
+                    if (! hash_equals($code, (string) $value)) {
+                        $fail(__('Der Registrierungscode ist falsch.'));
+                    }
+                }]
+                : ['nullable'],
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],

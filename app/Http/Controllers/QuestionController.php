@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Game;
 use App\Models\Question;
+use App\Support\EscapeRoom;
 use App\Support\QuestionDefaults;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,8 @@ class QuestionController extends Controller
         $this->authorize('update', $game);
 
         $data = $request->validate([
-            'type' => ['required', Rule::in(Question::TYPES)],
+            // Escape-Rooms nur mit automatisch prüfbaren Rätseltypen.
+            'type' => ['required', Rule::in($game->isEscape() ? Game::ESCAPE_PUZZLE_TYPES : Question::TYPES)],
         ]);
 
         DB::transaction(function () use ($game, $data) {
@@ -39,10 +41,14 @@ class QuestionController extends Controller
         $this->authorize('update', $game);
         abort_unless($question->game_id === $game->id, 404);
 
+        // Nur Bilder aus dem eigenen Upload-Ordner dieses Spiels (kein ../, keine fremden Spiele).
+        $imagePath = 'regex:#^game-images/'.$game->id.'/[A-Za-z0-9_.-]+$#';
+
         $data = $request->validate([
             'prompt_mode' => ['required', 'in:text,image'],
             'prompt_text' => ['nullable', 'array'],
-            'prompt_image_path' => ['nullable', 'string'],
+            'prompt_text.*' => ['nullable', 'string', 'max:5000'],
+            'prompt_image_path' => ['nullable', 'string', $imagePath],
             'time_limit' => ['nullable', 'integer', 'min:3', 'max:3600'],
             'points' => ['required', 'integer', 'min:0', 'max:100000'],
             'scored' => ['required', 'boolean'],
@@ -52,7 +58,8 @@ class QuestionController extends Controller
             'options.*.id' => ['nullable', 'integer'],
             'options.*.mode' => ['required_with:options', 'in:text,image'],
             'options.*.text' => ['nullable', 'array'],
-            'options.*.image_path' => ['nullable', 'string'],
+            'options.*.text.*' => ['nullable', 'string', 'max:1000'],
+            'options.*.image_path' => ['nullable', 'string', $imagePath],
             'options.*.is_correct' => ['boolean'],
         ]);
 
@@ -83,6 +90,12 @@ class QuestionController extends Controller
         abort_unless($question->game_id === $game->id, 404);
 
         $question->delete();
+
+        // Escape-Room: Verweise auf die gelöschte Frage entfernen (Editor warnt dann sichtbar).
+        if ($game->isEscape() && $game->escape) {
+            $game->escape = EscapeRoom::sanitize($game->escape, $game);
+            $game->save();
+        }
 
         return back()->with('status', 'question-deleted');
     }

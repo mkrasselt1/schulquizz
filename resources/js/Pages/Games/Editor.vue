@@ -11,7 +11,7 @@ import QuestionForm from '@/Components/QuestionEditor/QuestionForm.vue';
 import EscapeEditor from '@/Components/Escape/EscapeEditor.vue';
 import type { EscapeConfig } from '@/types/escape';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { QUESTION_TYPE_META, type Question, type QuestionType } from '@/types/quiz';
 
@@ -38,10 +38,54 @@ const props = defineProps<{
 const { t } = useI18n();
 const isEscape = computed(() => props.game.mode === 'escape');
 
+// ---- Ungespeicherte Änderungen nicht stillschweigend verwerfen ----
+const questionDirty = ref(false);
+const escapeDirty = ref(false);
+const anyDirty = computed(() => questionDirty.value || escapeDirty.value);
+
+function confirmDiscard(): boolean {
+    return !questionDirty.value || confirm(t('editor.unsavedConfirm'));
+}
+function selectQuestion(id: number) {
+    if (id === selectedId.value || !confirmDiscard()) return;
+    selectedId.value = id;
+}
+// Wegnavigieren innerhalb der App (z. B. "Zurück") abfangen.
+const removeGuard = router.on('before', (event) => {
+    if (event.detail.visit.method === 'get' && anyDirty.value && !confirm(t('editor.unsavedConfirm'))) {
+        return false;
+    }
+});
+onBeforeUnmount(() => removeGuard());
+
+// Wo wird die ausgewählte Frage im Escape-Room benutzt? (Warnung beim Löschen)
+const selectedUsedBy = computed(() => {
+    const id = selectedId.value;
+    const out: string[] = [];
+    props.game.escape?.rooms.forEach((r, i) => {
+        for (const h of r.hotspots) {
+            if (h.kind === 'puzzle' && h.question_id === id) {
+                out.push(`${r.title?.[props.game.base_locale] || i + 1} / ${h.label?.[props.game.base_locale] || '🧩'}`);
+            }
+        }
+    });
+    return out;
+});
+
 const selectedId = ref<number | null>(props.questions[0]?.id ?? null);
 const selected = computed(() => props.questions.find((q) => q.id === selectedId.value) ?? null);
 
 const showTypeMenu = ref(false);
+
+watch(
+    () => props.questions.map((q) => q.id).join(','),
+    () => {
+        if (!props.questions.some((q) => q.id === selectedId.value)) {
+            selectedId.value = props.questions[0]?.id ?? null;
+            questionDirty.value = false;
+        }
+    },
+);
 
 const metaForm = useForm({
     title: props.game.title,
@@ -53,8 +97,11 @@ function saveMeta() {
     metaForm.put(route('games.update', props.game.id), { preserveScroll: true });
 }
 
+const adding = ref(false);
 function addQuestion(type: QuestionType) {
     showTypeMenu.value = false;
+    if (adding.value || !confirmDiscard()) return;
+    adding.value = true;
     router.post(
         route('questions.store', props.game.id),
         { type },
@@ -65,6 +112,7 @@ function addQuestion(type: QuestionType) {
                 const list = (page.props.questions as Question[]) ?? [];
                 selectedId.value = list[list.length - 1]?.id ?? selectedId.value;
             },
+            onFinish: () => (adding.value = false),
         },
     );
 }
@@ -160,7 +208,7 @@ function promptPreview(q: Question): string {
                                 @dragstart="onDragStart(i)"
                                 @dragover.prevent
                                 @drop="onDrop(i)"
-                                @click="selectedId = q.id"
+                                @click="selectQuestion(q.id)"
                                 class="flex cursor-pointer items-center gap-2 px-4 py-2 text-sm text-gray-800 dark:text-gray-200"
                                 :class="
                                     q.id === selectedId
@@ -175,11 +223,11 @@ function promptPreview(q: Question): string {
                         </ul>
                     </Card>
 
-                    <Card title="QR-Code">
+                    <Card :title="t('editor.qrTitle')">
                         <div class="flex flex-col items-center text-center">
                             <QrCode :value="game.join_url" :size="160" />
                             <p class="mt-2 break-all text-xs text-gray-400">{{ game.join_url }}</p>
-                            <p class="mt-1 text-xs text-gray-400">Fester Code für Materialien.</p>
+                            <p class="mt-1 text-xs text-gray-400">{{ t('editor.qrHint') }}</p>
                         </div>
                     </Card>
                 </div>
@@ -212,11 +260,15 @@ function promptPreview(q: Question): string {
                                 <PrimaryButton :disabled="metaForm.processing">{{ $t('common.save') }}</PrimaryButton>
                                 <span v-if="metaForm.recentlySuccessful" class="text-sm text-green-600">✓</span>
                             </div>
+                            <div v-if="Object.keys(metaForm.errors).length" class="text-sm text-red-600">
+                                <p v-for="(e, k) in metaForm.errors" :key="k">{{ e }}</p>
+                            </div>
                         </form>
                     </Card>
 
                     <Card v-if="isEscape && game.escape" :title="'🔐 ' + t('escape.rooms')">
                         <EscapeEditor
+                            @dirty="escapeDirty = $event"
                             :game-id="game.id"
                             :base-locale="game.base_locale"
                             :media-base="mediaBase"
@@ -228,6 +280,8 @@ function promptPreview(q: Question): string {
                     <Card v-if="selected" :title="(isEscape ? '🧩 ' : '') + typeLabel(selected.type)">
                         <QuestionForm
                             :key="selected.id"
+                            :used-by="selectedUsedBy"
+                            @dirty="questionDirty = $event"
                             :question="selected"
                             :game-id="game.id"
                             :base-locale="game.base_locale"

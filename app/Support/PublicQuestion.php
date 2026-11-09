@@ -45,7 +45,18 @@ class PublicQuestion
                 || ($question->type === 'choice' && ($question->config['randomize'] ?? false));
 
             if ($shouldShuffle) {
-                $options = self::seededShuffle($options, $shuffleSeed ?? (string) $question->id);
+                $seed = $shuffleSeed ?? (string) $question->id;
+                $original = array_column($options, 'id');
+                $shuffled = self::seededShuffle($options, $seed);
+                // Beim Sortieren darf die Ausgangslage nicht schon die Lösung sein.
+                for ($try = 1; $question->type === 'sort' && count($options) > 1
+                    && array_column($shuffled, 'id') === $original && $try < 10; $try++) {
+                    $shuffled = self::seededShuffle($options, $seed.'#'.$try);
+                }
+                if ($question->type === 'sort' && count($options) > 1 && array_column($shuffled, 'id') === $original) {
+                    $shuffled = array_reverse($options);
+                }
+                $options = $shuffled;
             }
 
             $data['options'] = $options;

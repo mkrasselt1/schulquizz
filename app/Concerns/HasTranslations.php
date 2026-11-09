@@ -48,10 +48,13 @@ trait HasTranslations
         $locale ??= App::getLocale();
         $base = $this->base_locale ?? config('app.fallback_locale', 'de');
 
-        return $translations[$locale]
-            ?? $translations[$base]
-            ?? reset($translations)
-            ?: null;
+        foreach ([$translations[$locale] ?? null, $translations[$base] ?? null, ...array_values($translations)] as $value) {
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     public function getAttribute($key)

@@ -13,6 +13,8 @@ export default {
         join: 'Join a game',
     },
     auth: {
+        registrationCode: 'Registration code',
+        registrationCodeHint: 'Ask the person who runs Schulquizz at your school for the code.',
         loginTitle: 'Log in',
         registerTitle: 'Create account',
         name: 'Name',
@@ -77,6 +79,8 @@ export default {
         updatedAt: 'Updated',
     },
     common: {
+        yes: 'Yes',
+        no: 'No',
         save: 'Save',
         cancel: 'Cancel',
         delete: 'Delete',
@@ -90,6 +94,11 @@ export default {
         language: 'Language',
     },
     editor: {
+        saveFailed: 'Not saved – please check:',
+        unsavedConfirm: 'There are unsaved changes. Leave anyway and discard them?',
+        confirmDeleteUsedQuestion: 'This question is used as a puzzle in the escape room ({where}). It will be missing there. Delete anyway?',
+        qrTitle: 'QR code',
+        qrHint: 'Fixed code for printed materials.',
         questions: 'Questions',
         addQuestion: 'Add question',
         noQuestions: 'No questions yet. Add the first one.',
@@ -108,7 +117,7 @@ export default {
         correct: 'Correct',
         multiple: 'Allow multiple selection',
         randomize: 'Randomize answer order',
-        clozeHint: 'Mark gaps directly in the question text with [[answer]]. Separate alternatives with |, e.g. [[Paris|paris]].',
+        clozeHint: "Mark gaps directly in the question text with [[answer]]. Separate alternatives with {'|'}, e.g. [[Paris{'|'}paris]].",
         gap: 'Gap',
         clozeNoGap: 'No gap detected yet – mark one in the question text with [[answer]].',
         acceptedAnswers: 'Accepted answers (comma-separated)',
@@ -149,6 +158,7 @@ export default {
         nav: 'Moderation',
     },
     control: {
+        storageFull: 'Browser storage is full – drawings may be missing after a reload. Grades are kept.',
         title: 'Control panel',
         joinInfo: 'How students join',
         pin: 'PIN',
@@ -184,6 +194,10 @@ export default {
         fullscreenHint: 'Tab/window switches are always detected regardless.',
     },
     play: {
+        comeBack: 'Please come back to the game',
+        joinAnother: 'Join another game',
+        answerClosed: 'This question is already over.',
+        sendFailed: 'Your answer could not be sent – please tap again.',
         joinTitle: 'Join a game',
         enterPin: 'Enter game PIN',
         pin: 'PIN',
@@ -213,6 +227,8 @@ export default {
         ended: 'The game has ended. Thanks for playing!',
     },
     escape: {
+        retry: 'Try again',
+        warnRequiresClue: '{room} / {hotspot}: waits for a clue or deleted hotspot – will never appear.',
         modeQuiz: 'Live quiz',
         modeQuizHelp: 'The teacher advances question by question.',
         modeEscape: 'Escape room',
@@ -304,6 +320,12 @@ export default {
         none: 'No points',
         pushPodium: 'Send podium to board',
         confirmEnd: '{count} drawing(s) are still ungraded (they count as 0 points). You can still grade them after ending. End now?',
+    },
+    upload: {
+        tooLarge: 'The image is too large (max. {mb} MB).',
+        invalid: 'This file is not a supported image (PNG, JPG, WebP, GIF).',
+        failed: 'Upload failed – please try again.',
+        uploading: 'Uploading …',
     },
     landing: {
         heroTitle: 'Live quizzes without collecting data',

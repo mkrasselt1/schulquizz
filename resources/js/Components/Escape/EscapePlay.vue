@@ -26,6 +26,7 @@ const { t, locale } = useI18n();
 const escape = ref<PublicEscape | null>(props.initialEscape);
 const loadError = ref(false);
 
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
 async function load() {
     try {
         const res = await axios.get(route('play.escape'));
@@ -33,6 +34,9 @@ async function load() {
         loadError.value = false;
     } catch {
         loadError.value = true;
+        // Schul-WLAN: automatisch erneut versuchen
+        if (retryTimer) clearTimeout(retryTimer);
+        retryTimer = setTimeout(() => !escape.value && load(), 5000);
     }
 }
 
@@ -50,10 +54,11 @@ interface Progress {
     room: number;
     solved: Record<string, Translations | null>; // Hotspot-ID → Belohnung
     escapedMs: number | null;
+    receipts: any[]; // signierte Quittungen (für erneute Meldung an die Lehrkraft)
 }
 
 const storageKey = `schulquizz.escape.${props.sessionKey}.${props.participantToken}`;
-const progress = reactive<Progress>({ introSeen: false, room: 0, solved: {}, escapedMs: null });
+const progress = reactive<Progress>({ introSeen: false, room: 0, solved: {}, escapedMs: null, receipts: [] });
 try {
     Object.assign(progress, JSON.parse(localStorage.getItem(storageKey) || '{}'));
 } catch {
@@ -123,6 +128,7 @@ async function check() {
         }
         feedback.value = 'correct';
         progress.solved[h.id] = res.data.reward ?? null;
+        if (res.data.receipt) progress.receipts.push(res.data.receipt);
 
         if (res.data.result === 'next_room') {
             progress.room++;
@@ -175,7 +181,10 @@ function hotspotTitle(h: PublicHotspot): string {
         </div>
 
         <div v-if="!escape" class="py-20 text-center text-gray-500">
-            {{ loadError ? t('escape.loadError') : t('common.loading') }}
+            <p>{{ loadError ? t('escape.loadError') : t('common.loading') }}</p>
+            <button v-if="loadError" class="mt-4 rounded-lg bg-indigo-600 px-5 py-2 text-white" @click="load">
+                {{ t('escape.retry') }}
+            </button>
         </div>
 
         <!-- Entkommen -->

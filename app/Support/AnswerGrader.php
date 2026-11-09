@@ -12,6 +12,9 @@ use App\Models\Question;
  */
 class AnswerGrader
 {
+    /** Längere Eingaben werden nicht verglichen (Levenshtein ist O(n·m)). */
+    private const MAX_LEN = 300;
+
     public static function isCorrect(Question $question, mixed $answer): bool
     {
         switch ($question->type) {
@@ -31,6 +34,7 @@ class AnswerGrader
 
             case 'cloze':
                 $given = is_array($answer) ? array_values($answer) : [];
+                $given = array_map(fn ($g) => is_scalar($g) ? (string) $g : '', $given);
                 $threshold = (float) ($question->config['threshold'] ?? 0.85);
                 // Jede Sprachfassung hat eigene Lücken – richtig, wenn eine davon vollständig passt.
                 foreach ($question->getTranslations('prompt_text') as $raw) {
@@ -111,7 +115,7 @@ class AnswerGrader
 
     private static function matchesAny(array $accepted, string $given, float $threshold): bool
     {
-        if (trim($given) === '') {
+        if (trim($given) === '' || mb_strlen($given) > self::MAX_LEN) {
             return false;
         }
         foreach ($accepted as $acc) {

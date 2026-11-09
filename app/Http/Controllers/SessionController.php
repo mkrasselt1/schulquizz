@@ -30,6 +30,11 @@ class SessionController extends Controller
             'settings' => ['nullable', 'array'],
         ]);
 
+        // Läuft schon ein Spiel (Doppelklick, zweiter Tab)? Dann dorthin – nicht die Klasse rauswerfen.
+        if (! $request->boolean('replace') && ($running = GameSession::activeForGame($game))) {
+            return redirect()->route('sessions.control', $running);
+        }
+
         $session = $this->sessions->start($game, $data);
 
         return redirect()->route('sessions.control', $session);
@@ -70,6 +75,7 @@ class SessionController extends Controller
     public function pause(GameSession $session): RedirectResponse
     {
         $this->authorizeSession($session);
+        $this->ensureLive($session);
         $this->sessions->pause($session);
 
         return back();
@@ -78,6 +84,7 @@ class SessionController extends Controller
     public function resume(GameSession $session): RedirectResponse
     {
         $this->authorizeSession($session);
+        $this->ensureLive($session);
         $this->sessions->resume($session);
 
         return back();
@@ -98,6 +105,7 @@ class SessionController extends Controller
     public function question(Request $request, GameSession $session): RedirectResponse
     {
         $this->authorizeSession($session);
+        $this->ensureLive($session);
 
         $data = $request->validate([
             'direction' => ['nullable', 'in:next,prev'],
@@ -117,6 +125,7 @@ class SessionController extends Controller
     public function escapeStart(GameSession $session): RedirectResponse
     {
         $this->authorizeSession($session);
+        $this->ensureLive($session);
         abort_unless($session->game->isEscape(), 422);
         $this->sessions->startEscape($session);
 
@@ -126,6 +135,7 @@ class SessionController extends Controller
     public function phase(GameSession $session): RedirectResponse
     {
         $this->authorizeSession($session);
+        $this->ensureLive($session);
         $this->sessions->advancePhase($session);
 
         return back();
@@ -134,6 +144,7 @@ class SessionController extends Controller
     public function timer(Request $request, GameSession $session): RedirectResponse
     {
         $this->authorizeSession($session);
+        $this->ensureLive($session);
 
         $data = $request->validate([
             'mode' => ['required', 'in:set,extend'],
@@ -152,6 +163,7 @@ class SessionController extends Controller
     public function reveal(GameSession $session): RedirectResponse
     {
         $this->authorizeSession($session);
+        $this->ensureLive($session);
         $this->sessions->reveal($session);
 
         return back();
@@ -170,14 +182,40 @@ class SessionController extends Controller
             'payload' => ['nullable', 'array'],
         ]);
 
-        event(new \App\Events\SessionEvent(
+        \Illuminate\Support\Facades\Cache::put(
+            "board-last:{$session->session_key}",
+            ['event' => $data['event'], 'payload' => $data['payload'] ?? []],
+            now()->addHours(6),
+        );
+
+        \App\Events\SessionEvent::send(
             $session->session_key,
             'board_'.$data['event'],
             $data['payload'] ?? [],
             scope: 'board',
-        ));
+        );
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Leitstand (neu) verbunden: alle Schüler-Geräte bitten, ihre aktuelle Antwort bzw.
+     * ihren Escape-Fortschritt erneut zu senden. Nichts wird gespeichert.
+     */
+    public function resync(GameSession $session): \Illuminate\Http\JsonResponse
+    {
+        $this->authorizeSession($session);
+        if ($session->isLive()) {
+            \App\Events\SessionEvent::send($session->session_key, 'resync');
+        }
+
+        return response()->json(['ok' => true, 'state' => $this->sessions->stateFor($session, false)]);
+    }
+
+    /** Beendete Sessions bleiben beendet (sonst: Doppel-PIN, Schüler im falschen Spiel). */
+    private function ensureLive(GameSession $session): void
+    {
+        abort_unless($session->isLive(), 409, 'Dieses Spiel ist bereits beendet.');
     }
 
     private function authorizeSession(GameSession $session): void

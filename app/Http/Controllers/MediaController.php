@@ -18,7 +18,7 @@ class MediaController extends Controller
         $this->authorize('update', $game);
 
         $request->validate([
-            'image' => ['required', 'image', 'mimes:png,jpg,jpeg,webp,gif', 'max:5120'], // 5 MB
+            'image' => ['required', 'image', 'mimes:png,jpg,jpeg,webp,gif', 'max:10240'], // 10 MB (Handyfotos)
         ]);
 
         $path = $request->file('image')->store("game-images/{$game->id}", 'public');

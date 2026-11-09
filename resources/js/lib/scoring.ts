@@ -58,17 +58,21 @@ export function grade(question: Question, answer: any): Correctness {
                 : 'wrong';
         }
         case 'cloze': {
-            const raw = Object.values(question.prompt_text || {})[0] || '';
-            const { gaps } = parseCloze(raw);
-            if (gaps.length === 0) return 'none';
-            const given: string[] = Array.isArray(answer) ? answer : [];
+            // Jede Sprachfassung hat eigene Lücken – richtig, wenn eine davon vollständig passt.
+            const given: string[] = (Array.isArray(answer) ? answer : []).map((g) => String(g ?? ''));
             const threshold = question.config?.threshold ?? 0.85;
-            const allCorrect = gaps.every((g, i) =>
-                g.accepted.some(
-                    (acc) => norm(acc) === norm(given[i] ?? '') || similarity(acc, given[i] ?? '') >= threshold,
+            const versions = Object.values(question.prompt_text || {})
+                .map((raw) => parseCloze(String(raw ?? '')).gaps)
+                .filter((gaps) => gaps.length > 0);
+            if (versions.length === 0) return 'none';
+            const ok = versions.some((gaps) =>
+                gaps.every((g, i) =>
+                    g.accepted.some(
+                        (acc) => norm(acc) === norm(given[i] ?? '') || similarity(acc, given[i] ?? '') >= threshold,
+                    ),
                 ),
             );
-            return allCorrect ? 'correct' : 'wrong';
+            return ok ? 'correct' : 'wrong';
         }
         case 'free_text': {
             const accepted: string[] = question.config?.accepted ?? [];
@@ -78,6 +82,7 @@ export function grade(question: Question, answer: any): Correctness {
                 : 'wrong';
         }
         case 'estimate': {
+            if (answer === null || answer === undefined || answer === '' || !Number.isFinite(Number(answer))) return 'wrong';
             const correct = Number(question.config?.correct ?? 0);
             const tol = Number(question.config?.tolerance ?? 0);
             return Math.abs(Number(answer) - correct) <= tol ? 'correct' : 'wrong';
@@ -96,6 +101,7 @@ export function points(question: Question, answer: any, responseMs: number | nul
     const base = question.points ?? 0;
 
     if (question.type === 'estimate') {
+        if (answer === null || answer === undefined || answer === '' || !Number.isFinite(Number(answer))) return 0;
         const correct = Number(question.config?.correct ?? 0);
         const dist = Math.abs(Number(answer) - correct);
         const span = Math.max(Math.abs(correct), 1) * 0.5; // Halbierung bei 50% Abweichung

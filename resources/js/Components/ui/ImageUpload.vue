@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import axios from 'axios';
 import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const MAX_MB = 10;
 
 const props = defineProps<{
     gameId: number;
@@ -9,6 +12,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>();
+const { t } = useI18n();
 
 const uploading = ref(false);
 const error = ref('');
@@ -23,6 +27,11 @@ async function onFile(event: Event) {
     if (!file) return;
 
     error.value = '';
+    if (file.size > MAX_MB * 1024 * 1024) {
+        error.value = t('upload.tooLarge', { mb: MAX_MB });
+        if (input.value) input.value.value = '';
+        return;
+    }
     uploading.value = true;
     try {
         const data = new FormData();
@@ -32,7 +41,13 @@ async function onFile(event: Event) {
         });
         emit('update:modelValue', res.data.path);
     } catch (e: any) {
-        error.value = e?.response?.data?.message ?? 'Upload fehlgeschlagen';
+        const status = e?.response?.status;
+        error.value =
+            status === 413
+                ? t('upload.tooLarge', { mb: MAX_MB })
+                : status === 422
+                  ? (e.response.data?.errors?.image?.[0] ?? t('upload.invalid'))
+                  : t('upload.failed');
     } finally {
         uploading.value = false;
         if (input.value) input.value.value = '';
@@ -69,7 +84,7 @@ function clear() {
                 :disabled="uploading"
                 @change="onFile"
             />
-            <p v-if="uploading" class="mt-1 text-xs text-gray-400">Lädt hoch …</p>
+            <p v-if="uploading" class="mt-1 text-xs text-gray-400">{{ t('upload.uploading') }}</p>
             <p v-if="error" class="mt-1 text-xs text-red-600">{{ error }}</p>
         </div>
     </div>

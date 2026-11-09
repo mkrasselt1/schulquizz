@@ -77,6 +77,9 @@ class JoinController extends Controller
             return back()->withErrors(['pin' => 'Kein laufendes Spiel gefunden.']);
         }
 
+        $previous = session('participant');
+        $sameSession = is_array($previous) && ($previous['session_key'] ?? null) === $session->session_key;
+
         // Label bestimmen (Name gegen Sperrliste, sonst Auto-Emoji).
         if ($data['display_type'] === 'name') {
             $name = trim((string) ($data['name'] ?? ''));
@@ -89,12 +92,17 @@ class JoinController extends Controller
             $label = $name;
             $kind = 'name';
         } else {
-            // Reconnect: bereits vergebenes Emoji beibehalten, sonst neues eindeutiges.
-            $label = ($data['reconnect_emoji'] ?? '') ?: $this->emojis->assign($session->session_key);
+            // Reconnect (gleiches Gerät, gleiches Spiel): Emoji behalten, sonst neues eindeutiges.
+            $label = $sameSession && ($previous['kind'] ?? null) === 'emoji'
+                ? $previous['label']
+                : $this->emojis->assign($session->session_key);
             $kind = 'emoji';
         }
 
-        $token = ($data['participant_token'] ?? '') ?: (string) Str::uuid();
+        // Token nur wiederverwenden, wenn DIESES Gerät schon in DIESEM Spiel war (serverseitige
+        // Session). Vom Browser mitgeschickte Daten werden nicht vertraut – sonst übernimmt auf
+        // einem geteilten Klassen-Tablet der nächste Schüler Identität und Punkte des vorigen.
+        $token = $sameSession ? $previous['token'] : (string) Str::uuid();
 
         session([
             'participant' => [
@@ -106,12 +114,12 @@ class JoinController extends Controller
         ]);
 
         // Roster-Meldung an die Lehrkraft (kein Presence-Channel nötig).
-        event(new \App\Events\SessionEvent(
+        \App\Events\SessionEvent::send(
             $session->session_key,
             'joined',
             ['token' => $token, 'label' => $label, 'kind' => $kind],
             scope: 'teacher',
-        ));
+        );
 
         return redirect()->route('play');
     }
@@ -123,12 +131,12 @@ class JoinController extends Controller
             if (($participant['kind'] ?? null) === 'emoji') {
                 $this->emojis->release($participant['session_key'], $participant['label']);
             }
-            event(new \App\Events\SessionEvent(
+            \App\Events\SessionEvent::send(
                 $participant['session_key'],
                 'left',
                 ['token' => $participant['token']],
                 scope: 'teacher',
-            ));
+            );
         }
         $request->session()->forget('participant');
 

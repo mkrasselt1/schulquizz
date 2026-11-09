@@ -55,8 +55,11 @@ function onImportFile(event: Event) {
     });
 }
 
+const busy = ref(false);
 function duplicate(game: GameItem) {
-    router.post(route('games.duplicate', game.id));
+    if (busy.value) return; // Doppelklick → sonst zwei Kopien
+    busy.value = true;
+    router.post(route('games.duplicate', game.id), {}, { onFinish: () => (busy.value = false) });
 }
 
 // Spiel direkt aus der Bibliothek starten

@@ -64,24 +64,33 @@ class GamePorter
             throw new \InvalidArgumentException('Unbekanntes Dateiformat.');
         }
 
-        $gameData = $data['game'] ?? [];
+        // In reine Arrays umwandeln (Export liefert Collections; Datei-Import liefert JSON).
+        $data = json_decode(json_encode($data, JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR), true);
+        $gameData = is_array($data['game'] ?? null) ? $data['game'] : [];
 
         return DB::transaction(function () use ($gameData, $user) {
             $game = new Game();
             $game->user_id = $user->id;
             $game->base_locale = $gameData['base_locale'] ?? 'de';
             $game->setTranslations('title', $this->titles($gameData['title'] ?? []));
-            if (! empty($gameData['description'])) {
-                $game->setTranslations('description', (array) $gameData['description']);
+            $description = $this->translations($gameData['description'] ?? []);
+            if ($description) {
+                $game->setTranslations('description', $description);
             }
-            $game->mode = in_array($gameData['mode'] ?? 'quiz', Game::MODES, true) ? $gameData['mode'] : 'quiz';
-            $game->settings = $gameData['settings'] ?? Game::DEFAULT_SETTINGS;
+            $mode = $gameData['mode'] ?? 'quiz';
+            $game->mode = in_array($mode, Game::MODES, true) ? $mode : 'quiz';
+            $game->settings = array_merge(
+                Game::DEFAULT_SETTINGS,
+                is_array($gameData['settings'] ?? null) ? $gameData['settings'] : [],
+            );
             $game->status = 'draft';
             $game->save();
 
             $questionIds = [];
-            foreach (($gameData['questions'] ?? []) as $qData) {
-                $questionIds[] = $this->importQuestion($game, $qData);
+            $position = 0;
+            foreach ((array) ($gameData['questions'] ?? []) as $qData) {
+                // Unbrauchbare Einträge überspringen, Index trotzdem halten (Escape-Verweise).
+                $questionIds[] = is_array($qData) ? $this->importQuestion($game, $qData, $position++) : null;
             }
 
             if ($game->isEscape() && is_array($gameData['escape'] ?? null)) {
@@ -134,31 +143,40 @@ class GamePorter
         return $escape;
     }
 
-    private function importQuestion(Game $game, array $qData): int
+    private function importQuestion(Game $game, array $qData, int $position): ?int
     {
+        $type = $qData['type'] ?? 'choice';
+        if (! in_array($type, Question::TYPES, true)) {
+            return null;
+        }
+        $timeLimit = is_numeric($qData['time_limit'] ?? null) ? (int) $qData['time_limit'] : null;
+
         $question = new Question([
-            'position' => $qData['position'] ?? 0,
-            'type' => $qData['type'] ?? 'choice',
-            'prompt_mode' => $qData['prompt_mode'] ?? 'text',
+            'position' => $position, // lückenlos neu nummerieren
+            'type' => $type,
+            'prompt_mode' => ($qData['prompt_mode'] ?? 'text') === 'image' ? 'image' : 'text',
             'prompt_image_path' => $this->storeImage($game, $qData['prompt_image'] ?? null),
-            'time_limit' => $qData['time_limit'] ?? null,
-            'points' => $qData['points'] ?? 1000,
-            'scored' => $qData['scored'] ?? true,
-            'reveal_after' => $qData['reveal_after'] ?? null,
-            'config' => $qData['config'] ?? [],
+            'time_limit' => $timeLimit ? max(3, min(3600, $timeLimit)) : null,
+            'points' => max(0, min(100000, (int) ($qData['points'] ?? 1000))),
+            'scored' => (bool) ($qData['scored'] ?? true),
+            'reveal_after' => isset($qData['reveal_after']) ? (bool) $qData['reveal_after'] : null,
+            'config' => is_array($qData['config'] ?? null) ? $qData['config'] : [],
         ]);
         $question->game_id = $game->id;
-        $question->setTranslations('prompt_text', (array) ($qData['prompt_text'] ?? []));
+        $question->setTranslations('prompt_text', $this->translations($qData['prompt_text'] ?? []));
         $question->save();
 
-        foreach (($qData['options'] ?? []) as $oData) {
+        foreach (array_values((array) ($qData['options'] ?? [])) as $i => $oData) {
+            if (! is_array($oData)) {
+                continue;
+            }
             $option = $question->answerOptions()->make([
-                'position' => $oData['position'] ?? 0,
-                'mode' => $oData['mode'] ?? 'text',
-                'image_path' => $this->storeImage($game, $oData['image'] ?? null),
-                'is_correct' => $oData['is_correct'] ?? false,
+                'position' => is_numeric($oData['position'] ?? null) ? (int) $oData['position'] : $i,
+                'mode' => ($oData['mode'] ?? 'text') === 'image' ? 'image' : 'text',
+                'image_path' => $this->storeImage($game, is_array($oData['image'] ?? null) ? $oData['image'] : null),
+                'is_correct' => (bool) ($oData['is_correct'] ?? false),
             ]);
-            $option->setTranslations('text', (array) ($oData['text'] ?? []));
+            $option->setTranslations('text', $this->translations($oData['text'] ?? []));
             $option->save();
         }
 
@@ -186,9 +204,9 @@ class GamePorter
     /**
      * Eingebettetes Bild dekodieren und beim Zielspiel ablegen; gibt den neuen Pfad zurück.
      */
-    private function storeImage(Game $game, ?array $image): ?string
+    private function storeImage(Game $game, mixed $image): ?string
     {
-        if (! $image || empty($image['data'])) {
+        if (! is_array($image) || empty($image['data']) || ! is_string($image['data'])) {
             return null;
         }
 
@@ -209,13 +227,27 @@ class GamePorter
         return $path;
     }
 
+    /** Nur gültige Übersetzungen (Sprachkürzel => Text) übernehmen. */
+    private function translations(mixed $value): array
+    {
+        if (is_string($value)) {
+            return ['de' => $value];
+        }
+        $out = [];
+        foreach ((array) $value as $loc => $text) {
+            if (is_string($loc) && preg_match('/^[a-z]{2}$/', $loc) && is_scalar($text)) {
+                $out[$loc] = (string) $text;
+            }
+        }
+
+        return $out;
+    }
+
     private function titles(mixed $title): array
     {
         if (is_string($title)) {
             return ['de' => $title];
         }
-        $title = (array) $title;
-
-        return $title ?: ['de' => 'Importiertes Quiz'];
+        return $this->translations($title) ?: ['de' => 'Importiertes Quiz'];
     }
 }

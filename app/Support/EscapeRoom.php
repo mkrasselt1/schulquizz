@@ -64,6 +64,7 @@ class EscapeRoom
 
         $rooms = [];
         $allIds = [];
+        $clueIds = [];
         foreach (array_slice((array) ($input['rooms'] ?? []), 0, 20) as $r) {
             $roomId = self::id($r['id'] ?? null, 'r_');
             $hotspots = [];
@@ -71,6 +72,9 @@ class EscapeRoom
                 $kind = in_array($h['kind'] ?? null, self::KINDS, true) ? $h['kind'] : 'clue';
                 $id = self::id($h['id'] ?? null, 'h_');
                 $allIds[] = $id;
+                if ($kind === 'clue') {
+                    $clueIds[] = $id;
+                }
                 $qid = isset($h['question_id']) ? (int) $h['question_id'] : null;
                 $x = self::clamp($h['x'] ?? 0, 0, 100);
                 $y = self::clamp($h['y'] ?? 0, 0, 100);
@@ -104,7 +108,8 @@ class EscapeRoom
             foreach ($room['hotspots'] as &$h) {
                 $h['requires'] = array_values(array_unique(array_filter(
                     $h['requires'],
-                    fn ($rid) => $rid !== $h['id'] && in_array($rid, $allIds, true),
+                    // Nur auf existierende, LÖSBARE Hotspots (ein Hinweis wird nie gelöst).
+                    fn ($rid) => $rid !== $h['id'] && in_array($rid, $allIds, true) && ! in_array($rid, $clueIds, true),
                 )));
             }
             unset($h);

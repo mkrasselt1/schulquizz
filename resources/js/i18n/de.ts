@@ -13,6 +13,8 @@ export default {
         join: 'Spiel beitreten',
     },
     auth: {
+        registrationCode: 'Registrierungscode',
+        registrationCodeHint: 'Den Code bekommst du von der Person, die Schulquizz an deiner Schule betreibt.',
         loginTitle: 'Anmelden',
         registerTitle: 'Konto erstellen',
         name: 'Name',
@@ -77,6 +79,8 @@ export default {
         updatedAt: 'Geändert',
     },
     common: {
+        yes: 'Ja',
+        no: 'Nein',
         save: 'Speichern',
         cancel: 'Abbrechen',
         delete: 'Löschen',
@@ -90,6 +94,11 @@ export default {
         language: 'Sprache',
     },
     editor: {
+        saveFailed: 'Nicht gespeichert – bitte prüfen:',
+        unsavedConfirm: 'Es gibt ungespeicherte Änderungen. Trotzdem verlassen und Änderungen verwerfen?',
+        confirmDeleteUsedQuestion: 'Diese Frage wird im Escape-Room als Rätsel benutzt ({where}). Dort fehlt sie dann. Wirklich löschen?',
+        qrTitle: 'QR-Code',
+        qrHint: 'Fester Code für Materialien.',
         questions: 'Fragen',
         addQuestion: 'Frage hinzufügen',
         noQuestions: 'Noch keine Fragen. Füge die erste hinzu.',
@@ -108,7 +117,7 @@ export default {
         correct: 'Richtig',
         multiple: 'Mehrfachauswahl erlauben',
         randomize: 'Antwort-Reihenfolge zufällig',
-        clozeHint: 'Markiere Lücken direkt im Fragetext mit [[Antwort]]. Alternativen mit | trennen, z. B. [[Paris|paris]].',
+        clozeHint: "Markiere Lücken direkt im Fragetext mit [[Antwort]]. Alternativen mit {'|'} trennen, z. B. [[Paris{'|'}paris]].",
         gap: 'Lücke',
         clozeNoGap: 'Noch keine Lücke erkannt – markiere sie im Fragetext mit [[Antwort]].',
         acceptedAnswers: 'Akzeptierte Antworten (kommagetrennt)',
@@ -149,6 +158,7 @@ export default {
         nav: 'Moderation',
     },
     control: {
+        storageFull: 'Der Browser-Speicher ist voll – nach einem Neuladen fehlen evtl. Zeichnungen. Bewertungen bleiben erhalten.',
         title: 'Leitstand',
         joinInfo: 'So treten Schüler bei',
         pin: 'PIN',
@@ -184,6 +194,10 @@ export default {
         fullscreenHint: 'Fenster-/Tabwechsel wird immer erkannt – unabhängig davon.',
     },
     play: {
+        comeBack: 'Bitte zurück zum Spiel',
+        joinAnother: 'Anderem Spiel beitreten',
+        answerClosed: 'Diese Frage ist schon vorbei.',
+        sendFailed: 'Antwort konnte nicht gesendet werden – bitte nochmal tippen.',
         joinTitle: 'Spiel beitreten',
         enterPin: 'Spiel-PIN eingeben',
         pin: 'PIN',
@@ -213,6 +227,8 @@ export default {
         ended: 'Das Spiel ist beendet. Danke fürs Mitmachen!',
     },
     escape: {
+        retry: 'Erneut versuchen',
+        warnRequiresClue: '{room} / {hotspot}: wartet auf einen Hinweis oder gelöschten Hotspot – erscheint nie.',
         modeQuiz: 'Live-Quiz',
         modeQuizHelp: 'Die Lehrkraft schaltet Frage für Frage weiter.',
         modeEscape: 'Escape-Room',
@@ -304,6 +320,12 @@ export default {
         none: 'Keine Punkte',
         pushPodium: 'Podium an Tafel senden',
         confirmEnd: 'Es sind noch {count} Mal-Antwort(en) unbewertet (zählen 0 Punkte). Du kannst sie nach dem Beenden noch bewerten. Jetzt beenden?',
+    },
+    upload: {
+        tooLarge: 'Das Bild ist zu groß (max. {mb} MB).',
+        invalid: 'Diese Datei ist kein unterstütztes Bild (PNG, JPG, WebP, GIF).',
+        failed: 'Hochladen fehlgeschlagen – bitte nochmal versuchen.',
+        uploading: 'Lädt hoch …',
     },
     landing: {
         heroTitle: 'Live-Quizze ohne Datensammeln',

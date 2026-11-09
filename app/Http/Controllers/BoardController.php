@@ -29,7 +29,19 @@ class BoardController extends Controller
             'joinUrl' => $session->pin
                 ? url('/join')
                 : url('/j/'.$session->game->join_token),
-            'state' => $this->sessions->stateFor($session),
+            'state' => $this->sessions->stateFor($session, false),
+            'lastBoard' => \Illuminate\Support\Facades\Cache::get("board-last:{$session->session_key}"),
+        ]);
+    }
+
+    /** Zustand nachladen (Tafel-Browser nach Verbindungsabbruch). */
+    public function state(string $key): \Illuminate\Http\JsonResponse
+    {
+        $session = GameSession::where('session_key', $key)->firstOrFail();
+
+        return response()->json([
+            'state' => $this->sessions->stateFor($session, false),
+            'lastBoard' => \Illuminate\Support\Facades\Cache::get("board-last:{$session->session_key}"),
         ]);
     }
 }

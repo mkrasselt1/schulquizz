@@ -17,7 +17,7 @@ use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Landing', [
-        'canRegister' => Route::has('register'),
+        'canRegister' => Route::has('register') && config('schulquizz.registration_enabled'),
     ]);
 });
 
@@ -32,6 +32,8 @@ Route::get('/j/{token}/status', [JoinController::class, 'status'])->name('join.s
 Route::post('/join', [JoinController::class, 'join'])->middleware('throttle:join')->name('join.submit');
 Route::post('/leave', [JoinController::class, 'leave'])->name('join.leave');
 Route::get('/play', [PlayController::class, 'show'])->name('play');
+Route::get('/play/state', [PlayController::class, 'state'])->middleware('throttle:play')->name('play.state');
+Route::post('/play/escape/resync', [PlayController::class, 'escapeResync'])->middleware('throttle:play')->name('play.escape.resync');
 Route::post('/play/answer', [PlayController::class, 'answer'])->middleware('throttle:play')->name('play.answer');
 Route::get('/play/escape', [PlayController::class, 'escape'])->name('play.escape');
 Route::post('/play/escape/check', [PlayController::class, 'escapeCheck'])->middleware('throttle:escape')->name('play.escape.check');
@@ -39,6 +41,7 @@ Route::post('/play/focus', [PlayController::class, 'focus'])->middleware('thrott
 
 // Tafel/Beamer (öffentlich, unratbarer Key)
 Route::get('/board/{key}', [BoardController::class, 'show'])->name('board');
+Route::get('/board/{key}/state', [BoardController::class, 'state'])->middleware('throttle:120,1')->name('board.state');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -85,6 +88,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/sessions/{session}/phase', [SessionController::class, 'phase'])->name('sessions.phase');
     Route::post('/sessions/{session}/timer', [SessionController::class, 'timer'])->name('sessions.timer');
     Route::post('/sessions/{session}/reveal', [SessionController::class, 'reveal'])->name('sessions.reveal');
+    Route::post('/sessions/{session}/resync', [SessionController::class, 'resync'])->name('sessions.resync');
     Route::post('/sessions/{session}/board', [SessionController::class, 'board'])->name('sessions.board');
 });
 

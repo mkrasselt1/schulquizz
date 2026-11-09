@@ -23,7 +23,8 @@ class GameExportController extends Controller
         $this->authorize('view', $game);
 
         $payload = $this->porter->export($game);
-        $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
 
         $slug = \Illuminate\Support\Str::slug($game->title ?: 'quiz') ?: 'quiz';
         $filename = $slug . '.quiz.json';
@@ -55,7 +56,9 @@ class GameExportController extends Controller
         try {
             $game = $this->porter->import($data, Auth::user());
         } catch (\Throwable $e) {
-            return back()->withErrors(['file' => 'Import fehlgeschlagen: ' . $e->getMessage()]);
+            report($e);
+
+            return back()->withErrors(['file' => 'Import fehlgeschlagen: Die Datei ist beschädigt oder hat ein unbekanntes Format.']);
         }
 
         return redirect()->route('games.edit', $game)->with('status', 'game-imported');

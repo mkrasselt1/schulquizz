@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 // Datensparsamkeit & Speicherplatz: verwaiste Sessions beenden, alte Sessions, verwaiste
 // Bilder und abgelaufene Cache-Einträge löschen.
 Schedule::command('schulquizz:cleanup')->hourly()->withoutOverlapping();
+Schedule::command('queue:prune-failed --hours=168')->daily();

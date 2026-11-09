@@ -10,6 +10,8 @@ import { useCountdown } from '@/Composables/useCountdown';
 import { tr, type PublicQuestion } from '@/types/quiz';
 import { formatClock } from '@/types/escape';
 import { syncServerClock } from '@/lib/serverClock';
+import { onResync } from '@/lib/realtime';
+import axios from 'axios';
 
 interface State {
     mode?: 'quiz' | 'escape';
@@ -28,6 +30,7 @@ const props = defineProps<{
     pin: string | null;
     joinUrl: string;
     state: State;
+    lastBoard?: { event: string; payload: any } | null;
 }>();
 
 const { t, locale } = useI18n();
@@ -40,7 +43,28 @@ const channelName = `board.${props.sessionKey}`;
 
 syncServerClock((props.state as any).server_time);
 
+// Letzte Anzeige (Verteilung/Podium) wiederherstellen – z. B. nach Neuladen der Tafel.
+function applyBoard(last: { event: string; payload: any } | null | undefined) {
+    if (!last) return;
+    if (last.event === 'podium') podium.value = last.payload?.entries ?? [];
+    if (last.event === 'distribution') distribution.value = last.payload;
+}
+applyBoard(props.lastBoard);
+
+async function refresh() {
+    try {
+        const res = await axios.get(route('board.state', props.sessionKey));
+        syncServerClock(res.data.state?.server_time);
+        Object.assign(state, res.data.state);
+        applyBoard(res.data.lastBoard);
+    } catch {
+        /* nächster Versuch */
+    }
+}
+let stopResync: (() => void) | null = null;
+
 onMounted(() => {
+    stopResync = onResync(refresh);
     echo()
         .channel(channelName)
         .listen('.state', (p: State) => {
@@ -57,7 +81,10 @@ onMounted(() => {
         .listen('.board_podium', (p: any) => (podium.value = p.entries ?? []))
         .listen('.ended', () => (state.status = 'ended'));
 });
-onBeforeUnmount(() => echo().leave(channelName));
+onBeforeUnmount(() => {
+    stopResync?.();
+    echo().leave(channelName);
+});
 
 const promptText = computed(() =>
     state.question ? tr(state.question.prompt_text, locale.value) : '',

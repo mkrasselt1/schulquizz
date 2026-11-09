@@ -31,6 +31,12 @@ class EmojiPoolService
      */
     public function assign(string $sessionKey): string
     {
+        return Cache::lock($this->cacheKey($sessionKey).':lock', 5)
+            ->block(5, fn () => $this->assignUnlocked($sessionKey));
+    }
+
+    private function assignUnlocked(string $sessionKey): string
+    {
         $taken = $this->taken($sessionKey);
         $available = array_values(array_diff(self::POOL, $taken));
 
@@ -49,6 +55,12 @@ class EmojiPoolService
      * Beim Verlassen freigeben (Best-Effort).
      */
     public function release(string $sessionKey, string $emoji): void
+    {
+        Cache::lock($this->cacheKey($sessionKey).':lock', 5)
+            ->block(5, fn () => $this->releaseUnlocked($sessionKey, $emoji));
+    }
+
+    private function releaseUnlocked(string $sessionKey, string $emoji): void
     {
         $taken = array_values(array_diff($this->taken($sessionKey), [$emoji]));
         Cache::put($this->cacheKey($sessionKey), $taken, now()->addMinutes(self::TTL_MINUTES));

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { echo } from '@laravel/echo-vue';
 import axios from 'axios';
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n';
 import AnswerInput from '@/Components/Play/AnswerInput.vue';
 import EscapePlay from '@/Components/Escape/EscapePlay.vue';
 import { syncServerClock } from '@/lib/serverClock';
+import { onResync, safeGet, safeSet } from '@/lib/realtime';
 import { useProctoring } from '@/Composables/useProctoring';
 import { useCountdown } from '@/Composables/useCountdown';
 import { tr, type PublicQuestion } from '@/types/quiz';
@@ -37,61 +38,113 @@ const { t, locale } = useI18n();
 const state = reactive<State>({ ...props.state });
 const answer = ref<any>(undefined);
 const submitted = ref(false);
+const sendError = ref<'' | 'network' | 'closed'>('');
 const revealPayload = ref<any>(null);
-let questionShownAt = 0;
 
 const { away, fullscreen, requestFullscreen } = useProctoring();
 const { remaining } = useCountdown(() => state.deadline);
 
 // Reconnect-Daten sichern.
-localStorage.setItem('schulquizz.participant', JSON.stringify(props.participant));
+safeSet('schulquizz.participant', JSON.stringify(props.participant));
+
+// Letzte abgegebene Antwort merken: übersteht Neuladen (kein Doppel-Antworten) und kann
+// der Lehrkraft erneut geschickt werden, falls deren Seite sie verpasst hat.
+const answeredKey = `schulquizz.answered.${props.sessionKey}.${props.participant.token}`;
+interface LastAnswer {
+    question_id: number;
+    answer: any;
+}
+function lastAnswer(): LastAnswer | null {
+    return safeGet<LastAnswer | null>(answeredKey, null);
+}
+if (state.question && lastAnswer()?.question_id === state.question.id) submitted.value = true;
 
 const channelName = `session.${props.sessionKey}`;
 
 function resetForQuestion() {
     answer.value = undefined;
-    submitted.value = false;
+    submitted.value = !!state.question && lastAnswer()?.question_id === state.question.id;
+    sendError.value = '';
     revealPayload.value = null;
-    questionShownAt = Date.now();
+}
+
+function applyState(payload: State) {
+    syncServerClock(payload.server_time);
+    const changedQuestion = payload.question?.id !== state.question?.id;
+    const changedPhase = payload.phase !== state.phase;
+    Object.assign(state, payload);
+    if (changedQuestion || (changedPhase && payload.phase === 'answers')) {
+        resetForQuestion();
+    }
+}
+
+// Verpasste Nachrichten nachholen (WLAN-Aussetzer, Bildschirmsperre).
+async function refreshState() {
+    try {
+        const res = await axios.get(route('play.state'));
+        if (res.data?.status === 'ended') state.status = 'ended';
+        else applyState(res.data);
+    } catch {
+        /* nächster Versuch beim nächsten Ereignis */
+    }
+}
+
+// Lehrkraft hat ihre Seite neu geladen → Antwort bzw. Escape-Fortschritt erneut melden.
+async function resendForTeacher() {
+    if (state.mode === 'escape') {
+        const progress = safeGet<any>(`schulquizz.escape.${props.sessionKey}.${props.participant.token}`, null);
+        const receipts = progress?.receipts ?? [];
+        if (receipts.length) {
+            try {
+                await axios.post(route('play.escape.resync'), { receipts });
+            } catch {
+                /* ignore */
+            }
+        }
+        return;
+    }
+    const last = lastAnswer();
+    if (last && state.question && last.question_id === state.question.id && state.phase === 'answers') {
+        try {
+            await axios.post(route('play.answer'), { question_id: last.question_id, answer: last.answer });
+        } catch {
+            /* ignore */
+        }
+    }
 }
 
 syncServerClock(props.state.server_time);
 
+let stopResync: (() => void) | null = null;
 onMounted(() => {
-    if (state.question) questionShownAt = Date.now();
-
     const channel = echo().channel(channelName);
     channel
-        .listen('.state', (payload: State) => {
-            syncServerClock(payload.server_time);
-            const changedQuestion = payload.question?.id !== state.question?.id;
-            const changedPhase = payload.phase !== state.phase;
-            Object.assign(state, payload);
-            if (changedQuestion || (changedPhase && payload.phase === 'answers')) {
-                resetForQuestion();
-            }
-        })
+        .listen('.state', (payload: State) => applyState(payload))
         .listen('.timer', (p: { deadline: string; server_time?: string }) => {
             syncServerClock(p.server_time);
             state.deadline = p.deadline;
         })
         .listen('.reveal', (p: any) => {
             revealPayload.value = p.reveal;
+            state.phase = 'reveal';
         })
+        .listen('.resync', () => resendForTeacher())
         .listen('.ended', () => {
             state.status = 'ended';
         });
+    stopResync = onResync(refreshState);
 });
 
 onBeforeUnmount(() => {
+    stopResync?.();
     echo().leave(channelName);
 });
 
 const canAnswer = computed(
     () =>
         state.status === 'active' &&
-        state.question &&
-        state.phase !== 'prompt' &&
+        !!state.question &&
+        state.phase === 'answers' &&
         !submitted.value &&
         (remaining.value === null || remaining.value > 0),
 );
@@ -103,14 +156,18 @@ const promptText = computed(() =>
 async function submit() {
     if (!state.question || answer.value === undefined) return;
     submitted.value = true;
+    sendError.value = '';
+    const payload = { question_id: state.question.id, answer: answer.value };
     try {
-        await axios.post(route('play.answer'), {
-            question_id: state.question.id,
-            answer: answer.value,
-            response_ms: Date.now() - questionShownAt,
-        });
-    } catch {
-        submitted.value = false;
+        await axios.post(route('play.answer'), payload);
+        safeSet(answeredKey, JSON.stringify(payload));
+    } catch (e: any) {
+        if (e?.response?.status === 409) {
+            sendError.value = 'closed'; // Frage schon vorbei – nicht erneut versuchen
+        } else {
+            submitted.value = false;
+            sendError.value = 'network';
+        }
     }
 }
 </script>
@@ -132,7 +189,7 @@ async function submit() {
         </header>
 
         <div v-if="away" class="bg-amber-500 px-4 py-1 text-center text-sm text-white">
-            ⚠️ Bitte zurück zum Spiel
+            ⚠️ {{ t('play.comeBack') }}
         </div>
 
         <main class="flex flex-1 flex-col items-center justify-center p-6">
@@ -140,6 +197,13 @@ async function submit() {
             <div v-if="state.status === 'ended'" class="text-center">
                 <div class="mb-4 text-6xl">🎉</div>
                 <p class="text-xl text-gray-700 dark:text-gray-200">{{ t('play.ended') }}</p>
+                <button
+                    type="button"
+                    class="mt-6 rounded-lg bg-indigo-600 px-5 py-2 text-white"
+                    @click="router.post(route('join.leave'))"
+                >
+                    {{ t('play.joinAnother') }}
+                </button>
             </div>
 
             <!-- Escape-Room (selbstgesteuert) -->
@@ -209,7 +273,10 @@ async function submit() {
                     />
 
                     <div class="mt-6 text-center">
-                        <p v-if="submitted" class="text-lg font-medium text-green-600">
+                        <p v-if="sendError === 'closed'" class="text-lg text-gray-500">
+                            {{ t('play.answerClosed') }}
+                        </p>
+                        <p v-else-if="submitted" class="text-lg font-medium text-green-600">
                             {{ t('play.answered') }}
                         </p>
                         <p v-else-if="remaining === 0" class="text-lg text-gray-500">
@@ -218,11 +285,14 @@ async function submit() {
                         <button
                             v-else
                             class="rounded-lg bg-indigo-600 px-6 py-3 text-lg text-white disabled:opacity-40"
-                            :disabled="answer === undefined"
+                            :disabled="answer === undefined || !canAnswer"
                             @click="submit"
                         >
                             {{ t('play.submit') }}
                         </button>
+                        <p v-if="sendError === 'network'" class="mt-2 text-sm text-red-600">
+                            {{ t('play.sendFailed') }}
+                        </p>
                     </div>
                 </template>
             </div>

@@ -9,7 +9,7 @@ import Podium from '@/Components/Play/Podium.vue';
 import ManualGrading from '@/Components/Play/ManualGrading.vue';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useTeacherSession } from '@/Composables/useTeacherSession';
 import { useCountdown } from '@/Composables/useCountdown';
@@ -27,8 +27,25 @@ const props = defineProps<{
 
 const { t } = useI18n();
 
-const { state, list, leaderboard, escapeRanking, openGradings, answeredCount, setManualPoints, clear } =
-    useTeacherSession(props.session.session_key, props.questions, props.state);
+const {
+    state,
+    list,
+    leaderboard,
+    escapeRanking,
+    openGradings,
+    answeredCount,
+    setManualPoints,
+    clear,
+    persistFailed,
+    applyState,
+} = useTeacherSession(props.session.id, props.session.session_key, props.questions, props.state);
+
+// Nach jeder eigenen Aktion liefert der Server den neuen Stand mit – auch wenn die
+// WebSocket-Verbindung gerade hängt (sonst: doppelt "Weiter" geklickt → Frage übersprungen).
+watch(
+    () => props.state,
+    (s) => s && applyState(s),
+);
 
 const { remaining } = useCountdown(() => state.deadline ?? null);
 
@@ -189,7 +206,10 @@ const clock = computed(() =>
             </Card>
         </div>
 
-        <div v-else class="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-3 lg:px-8">
+        <div v-if="persistFailed" class="mx-auto mt-4 max-w-7xl px-4 text-sm text-amber-700 dark:text-amber-300">
+            ⚠️ {{ t('control.storageFull') }}
+        </div>
+        <div v-if="!ended" class="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-3 lg:px-8">
             <!-- Beitritt + Steuerung -->
             <div class="space-y-6 lg:col-span-1">
                 <Card :title="t('control.joinInfo')">

@@ -91,8 +91,35 @@ acode="$(curl -s -b "$CJ" -o /dev/null -w '%{http_code}' -X POST "$BASE/play/ans
 pass "Bild-Antwort 200 (Reverb-Größe ok)"
 
 echo "== 7. Keine Server-Fehler im Log =="
-errs="$(docker exec "$APP" sh -c 'grep -c "production.ERROR" storage/logs/laravel.log 2>/dev/null || echo 0')"
-[ "$errs" = "0" ] && pass "0 Fehler im Laravel-Log" || fail "$errs Fehler im Laravel-Log"
+errs="$(docker exec "$APP" sh -c 'cat storage/logs/laravel*.log 2>/dev/null | grep -c "production.ERROR" || true')"
+[ "${errs:-0}" = "0" ] && pass "0 Fehler im Laravel-Log" || fail "$errs Fehler im Laravel-Log"
+docker logs "$APP" 2>&1 | grep -q "production.ERROR" && fail "Fehler im Container-Log" || pass "0 Fehler im Container-Log"
+
+echo "== 8. Sicherheit: Reverb-API nicht öffentlich, Header gesetzt, Dateien nicht root =="
+code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/apps/schulquizz/events")"
+[ "$code" = "404" ] && pass "/apps gesperrt (404)" || fail "/apps erreichbar ($code)"
+curl -sI "$BASE/login" | grep -qi "x-content-type-options: nosniff" && pass "Sicherheits-Header" || fail "Sicherheits-Header fehlen"
+rootfiles="$(docker exec "$APP" sh -c 'find storage bootstrap/cache -user root | wc -l')"
+[ "$rootfiles" = "0" ] && pass "keine root-Dateien in storage/" || fail "$rootfiles Dateien in storage/ gehören root"
+
+echo "== 9. Neustart (wie beim Update): Init läuft erneut sauber durch =="
+docker restart "$APP" >/dev/null
+for i in $(seq 1 30); do
+    [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/login" || true)" = "200" ] && break
+    sleep 2
+done
+n="$(docker logs "$APP" 2>&1 | grep -c "Init abgeschlossen" || true)"
+[ "$n" -ge 2 ] && pass "Init nach Neustart abgeschlossen" || fail "Init nach Neustart nicht abgeschlossen"
+code="$(curl -s -o /dev/null -w '%{http_code}' "$BASE/login")"
+[ "$code" = "200" ] && pass "/login nach Neustart -> 200" || fail "/login nach Neustart -> $code"
+
+echo "== 10. Healthcheck =="
+for i in $(seq 1 30); do
+    st="$(docker inspect -f '{{.State.Health.Status}}' "$APP")"
+    [ "$st" = "healthy" ] && break
+    sleep 3
+done
+[ "$st" = "healthy" ] && pass "Container healthy" || fail "Container-Health: $st"
 
 echo
 echo "🎉 SMOKE-TEST BESTANDEN"

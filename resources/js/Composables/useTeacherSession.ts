@@ -1,8 +1,10 @@
 import { echo } from '@laravel/echo-vue';
-import { computed, onBeforeUnmount, onMounted, reactive } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import type { Question } from '@/types/quiz';
 import { grade, points, type Correctness } from '@/lib/scoring';
 import { syncServerClock } from '@/lib/serverClock';
+import { onResync, safeSet } from '@/lib/realtime';
+import axios from 'axios';
 
 export interface ParticipantAnswer {
     answer: any;
@@ -37,6 +39,7 @@ export interface LiveParticipant {
  * spiegelt alles in localStorage (übersteht Reload). Löschbar bei Spielende/Export.
  */
 export function useTeacherSession(
+    sessionId: number,
     sessionKey: string,
     questions: Question[],
     initialState: Record<string, any> = {},
@@ -59,8 +62,39 @@ export function useTeacherSession(
         /* ignore */
     }
 
+    // Alte Sitzungsdaten (älter als 2 Tage) aus dem Browser-Speicher entfernen.
+    try {
+        const cutoff = Date.now() - 2 * 24 * 3600 * 1000;
+        for (const key of Object.keys(localStorage)) {
+            if (!key.startsWith('schulquizz.session.') || key === storageKey) continue;
+            const saved = JSON.parse(localStorage.getItem(key) || '{}');
+            if (!saved.savedAt || saved.savedAt < cutoff) localStorage.removeItem(key);
+        }
+    } catch {
+        /* ignore */
+    }
+
+    const persistFailed = ref(false);
+    let persistTimer: ReturnType<typeof setTimeout> | null = null;
     function persist() {
-        localStorage.setItem(storageKey, JSON.stringify({ participants }));
+        // Gebündelt speichern (nicht bei jeder einzelnen Antwort den ganzen Stand serialisieren).
+        if (persistTimer) return;
+        persistTimer = setTimeout(() => {
+            persistTimer = null;
+            const ok = safeSet(storageKey, JSON.stringify({ participants, savedAt: Date.now() }));
+            if (!ok) {
+                // Speicher voll (viele Mal-Antworten): ohne Bilder sichern, Bewertung bleibt erhalten.
+                const slim = JSON.parse(JSON.stringify(participants));
+                for (const p of Object.values<any>(slim)) {
+                    for (const a of Object.values<any>(p.answers ?? {})) {
+                        if (typeof a.answer === 'string' && a.answer.startsWith('data:image')) a.answer = null;
+                    }
+                }
+                persistFailed.value = !safeSet(storageKey, JSON.stringify({ participants: slim, savedAt: Date.now() }));
+            } else {
+                persistFailed.value = false;
+            }
+        }, 500);
     }
 
     function ensure(token: string, label: string, kind: string): LiveParticipant {
@@ -137,11 +171,30 @@ export function useTeacherSession(
 
     syncServerClock(initialState.server_time);
 
+    // Leitstand (neu) verbunden: aktuellen Stand holen und Schüler bitten, Antworten bzw.
+    // Escape-Fortschritt erneut zu senden (nichts davon liegt auf dem Server).
+    async function resync() {
+        try {
+            const res = await axios.post(route('sessions.resync', sessionId));
+            if (res.data?.state) {
+                syncServerClock(res.data.state.server_time);
+                Object.assign(state, res.data.state);
+            }
+        } catch {
+            /* nächster Versuch beim nächsten Ereignis */
+        }
+    }
+    let stopResync: (() => void) | null = null;
+
     onMounted(() => {
         bindControl();
         bindTeacher();
+        // kurz warten, bis die Kanäle abonniert sind
+        setTimeout(resync, 800);
+        stopResync = onResync(resync);
     });
     onBeforeUnmount(() => {
+        stopResync?.();
         echo().leave(channelName);
         echo().leave(`${channelName}.teacher`);
     });
@@ -149,7 +202,7 @@ export function useTeacherSession(
     // ---- Abgeleitete Werte ----
     function scoreOf(p: LiveParticipant): number {
         return Object.values(p.answers).reduce(
-            (sum, a) => sum + (a.manualPoints ?? a.points),
+            (sum, a) => sum + (Number.isFinite(a.manualPoints ?? a.points) ? (a.manualPoints ?? a.points) : 0),
             0,
         );
     }
@@ -220,5 +273,7 @@ export function useTeacherSession(
         setManualPoints,
         scoreOf,
         clear,
+        persistFailed,
+        applyState: (s: Record<string, any>) => Object.assign(state, s),
     };
 }

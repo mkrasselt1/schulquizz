@@ -73,5 +73,6 @@ export const QUESTION_TYPE_META: Record<QuestionType, { icon: string; key: strin
 /** Lokalisierten Wert aus einem Translations-Objekt lesen (mit Fallback). */
 export function tr(translations: Translations | undefined, locale: string, base = 'de'): string {
     if (!translations) return '';
-    return translations[locale] ?? translations[base] ?? Object.values(translations)[0] ?? '';
+    const pick = (v: unknown) => (typeof v === 'string' && v !== '' ? v : undefined);
+    return pick(translations[locale]) ?? pick(translations[base]) ?? Object.values(translations).map(pick).find(Boolean) ?? '';
 }

@@ -90,7 +90,7 @@ class Game extends Model
 
     public function questions(): HasMany
     {
-        return $this->hasMany(Question::class)->orderBy('position');
+        return $this->hasMany(Question::class)->orderBy('position')->orderBy('id');
     }
 
     /**

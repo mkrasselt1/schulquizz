@@ -21,6 +21,7 @@ const props = defineProps<{
     questions: Question[];
 }>();
 
+const emit = defineEmits<{ dirty: [value: boolean] }>();
 const { t } = useI18n();
 const L = props.baseLocale;
 
@@ -28,6 +29,7 @@ const data = ref<EscapeConfig>(clone(props.escape));
 const dirty = ref(false);
 const saving = ref(false);
 const savedAt = ref(0);
+const errors = ref<string[]>([]);
 let loading = true;
 
 function clone<T>(v: T): T {
@@ -41,6 +43,7 @@ watch(
     { deep: true },
 );
 loading = false;
+watch(dirty, (d) => emit('dirty', d));
 
 const roomIndex = ref(0);
 const room = computed(() => data.value.rooms[roomIndex.value]);
@@ -190,7 +193,14 @@ function removeHotspot() {
 }
 
 function setKind(kind: HotspotKind) {
-    if (selected.value) selected.value.kind = kind;
+    const h = selected.value;
+    if (!h) return;
+    h.kind = kind;
+    if (kind === 'clue') {
+        // Ein Hinweis wird nie "gelöst" – wer darauf wartet, bliebe für immer unsichtbar.
+        for (const r of data.value.rooms) for (const o of r.hotspots) o.requires = o.requires.filter((x) => x !== h.id);
+        h.requires = [];
+    }
 }
 
 function toggleRequire(id: string) {
@@ -221,7 +231,10 @@ const warnings = computed(() => {
     data.value.rooms.forEach((r, i) => {
         const name = trGet(r.title) || `${t('escape.room')} ${i + 1}`;
         if (!r.hotspots.some((h) => h.kind === 'lock')) out.push(t('escape.warnNoLock', { room: name }));
+        const kinds = new Map(r.hotspots.map((h) => [h.id, h.kind]));
         for (const h of r.hotspots) {
+            if (h.requires.some((id) => kinds.get(id) === 'clue' || !kinds.has(id)))
+                out.push(t('escape.warnRequiresClue', { room: name, hotspot: hotspotName(h) }));
             if (h.kind === 'puzzle' && (!h.question_id || !qids.has(h.question_id)))
                 out.push(t('escape.warnNoPuzzle', { room: name, hotspot: hotspotName(h) }));
             if (h.kind === 'lock' && !h.code.trim())
@@ -231,25 +244,44 @@ const warnings = computed(() => {
     return out;
 });
 
+let pendingSave = false;
 function save() {
+    // Läuft schon ein Speichervorgang, danach erneut speichern (statt ihn abzubrechen).
+    if (saving.value) {
+        pendingSave = true;
+        return;
+    }
     saving.value = true;
+    const sent = JSON.stringify(data.value);
     router.put(
         route('escape.update', props.gameId),
-        { escape: data.value },
+        { escape: JSON.parse(sent) },
         {
             preserveScroll: true,
             preserveState: true,
             onSuccess: (page) => {
+                errors.value = [];
+                savedAt.value = Date.now();
                 const fresh = (page.props as any).game?.escape;
-                if (fresh) {
+                // Nur übernehmen, wenn seit dem Absenden nichts geändert wurde – sonst
+                // gingen Eingaben verloren, die während des Speicherns gemacht wurden.
+                if (fresh && JSON.stringify(data.value) === sent) {
                     loading = true;
                     data.value = clone(fresh);
                     queueMicrotask(() => (loading = false));
+                    dirty.value = false;
                 }
-                dirty.value = false;
-                savedAt.value = Date.now();
             },
-            onFinish: () => (saving.value = false),
+            onError: (errs) => {
+                errors.value = Object.values(errs);
+            },
+            onFinish: () => {
+                saving.value = false;
+                if (pendingSave) {
+                    pendingSave = false;
+                    save();
+                }
+            },
         },
     );
 }
@@ -543,6 +575,10 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload));
         <!-- Warnungen + Speichern -->
         <ul v-if="warnings.length" class="space-y-1 rounded-md bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
             <li v-for="(w, i) in warnings" :key="i">⚠️ {{ w }}</li>
+        </ul>
+        <ul v-if="errors.length" class="space-y-1 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-200">
+            <li class="font-semibold">{{ t('editor.saveFailed') }}</li>
+            <li v-for="(e, i) in errors" :key="i">• {{ e }}</li>
         </ul>
         <div class="flex items-center gap-3">
             <PrimaryButton type="button" :disabled="saving" @click="save">{{ t('common.save') }}</PrimaryButton>

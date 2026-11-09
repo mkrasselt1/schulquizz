@@ -69,20 +69,35 @@ class SessionService
 
     public function pause(GameSession $session): void
     {
-        $session->update(['status' => 'paused']);
+        if ($session->status === 'paused') {
+            return;
+        }
+        // Restzeit einfrieren – sonst läuft die Zeit während der Pause weiter.
+        $remaining = $session->question_deadline && $session->question_deadline->isFuture()
+            ? (int) Carbon::now()->diffInMilliseconds($session->question_deadline)
+            : null;
+        $session->update([
+            'status' => 'paused',
+            'paused_remaining_ms' => $remaining,
+            'question_deadline' => $remaining !== null ? null : $session->question_deadline,
+        ]);
         $this->broadcastState($session);
     }
 
     public function resume(GameSession $session): void
     {
-        $session->update(['status' => 'active']);
+        $attrs = ['status' => 'active', 'paused_remaining_ms' => null];
+        if ($session->paused_remaining_ms !== null) {
+            $attrs['question_deadline'] = Carbon::now()->addMilliseconds((int) $session->paused_remaining_ms);
+        }
+        $session->update($attrs);
         $this->broadcastState($session);
     }
 
     public function end(GameSession $session): void
     {
         $session->update(['status' => 'ended', 'ended_at' => Carbon::now()]);
-        event(new SessionEvent($session->session_key, 'ended', ['message' => 'Spiel beendet']));
+        SessionEvent::send($session->session_key, 'ended', ['message' => 'Spiel beendet']);
     }
 
     /**
@@ -110,7 +125,7 @@ class SessionService
      */
     public function move(GameSession $session, int $direction): ?Question
     {
-        $questions = $session->game->questions()->orderBy('position')->get();
+        $questions = $session->game->questions()->get();
         $currentIndex = $questions->search(fn ($q) => $q->id === $session->current_question_id);
         $nextIndex = $currentIndex === false ? 0 : $currentIndex + $direction;
 
@@ -128,7 +143,8 @@ class SessionService
     public function advancePhase(GameSession $session): void
     {
         if ($session->current_phase === 'prompt') {
-            $session->update(['current_phase' => 'answers']);
+            // Antwortzeit ab Freigabe der Antworten messen.
+            $session->update(['current_phase' => 'answers', 'question_started_at' => Carbon::now()]);
             $this->broadcastState($session);
         }
     }
@@ -144,10 +160,10 @@ class SessionService
         $session->update([
             'question_deadline' => Carbon::now()->addSeconds($seconds),
         ]);
-        event(new SessionEvent($session->session_key, 'timer', [
+        SessionEvent::send($session->session_key, 'timer', [
             'deadline' => $session->question_deadline?->toIso8601String(),
             'server_time' => self::serverTime(),
-        ]));
+        ]);
     }
 
     public function extendTimer(GameSession $session, int $seconds): void
@@ -156,10 +172,10 @@ class SessionService
             ? $session->question_deadline
             : Carbon::now();
         $session->update(['question_deadline' => $base->addSeconds($seconds)]);
-        event(new SessionEvent($session->session_key, 'timer', [
+        SessionEvent::send($session->session_key, 'timer', [
             'deadline' => $session->question_deadline?->toIso8601String(),
             'server_time' => self::serverTime(),
-        ]));
+        ]);
     }
 
     /**
@@ -173,10 +189,10 @@ class SessionService
         }
         $session->update(['current_phase' => 'reveal']);
 
-        event(new SessionEvent($session->session_key, 'reveal', [
+        SessionEvent::send($session->session_key, 'reveal', [
             'reveal' => PublicQuestion::reveal($question),
             'reveal_mode' => $session->settings['reveal_mode'] ?? 'correct',
-        ]));
+        ]);
     }
 
     /**
@@ -185,7 +201,7 @@ class SessionService
     public function broadcastState(GameSession $session): void
     {
         // Raumstruktur nicht mitsenden (Nachrichtengröße) – Clients laden sie per HTTP nach.
-        event(new SessionEvent($session->session_key, 'state', $this->stateFor($session, false)));
+        SessionEvent::send($session->session_key, 'state', $this->stateFor($session, false));
     }
 
     /**
@@ -194,7 +210,7 @@ class SessionService
     public function stateFor(GameSession $session, bool $withEscape = true): array
     {
         $question = $session->currentQuestion;
-        $questions = $session->game->questions()->orderBy('position')->get();
+        $questions = $session->game->questions()->get();
         $index = $question ? $questions->search(fn ($q) => $q->id === $question->id) : false;
 
         $withAnswers = $session->current_phase !== 'prompt';
@@ -215,6 +231,7 @@ class SessionService
             'question_index' => $index === false ? null : $index,
             'question_total' => $questions->count(),
             'deadline' => $session->question_deadline?->toIso8601String(),
+            'paused_remaining_ms' => $session->paused_remaining_ms,
             'require_fullscreen' => (bool) ($session->settings['require_fullscreen'] ?? false),
             'question' => $question
                 ? PublicQuestion::forPlayers($question, $withAnswers)

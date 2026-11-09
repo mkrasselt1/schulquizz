@@ -34,6 +34,19 @@ class SessionEvent implements ShouldBroadcastNow
     ) {
     }
 
+    /**
+     * Sicher senden: Ist der WebSocket-Server gerade weg (Neustart, Absturz), soll die
+     * eigentliche Aktion trotzdem gelingen – der Fehler wird nur protokolliert.
+     */
+    public static function send(string $sessionKey, string $event, array $payload = [], string $scope = 'players'): void
+    {
+        try {
+            event(new self($sessionKey, $event, $payload, $scope));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     public function broadcastOn(): array
     {
         return match ($this->scope) {

@@ -24,7 +24,7 @@ FROM php:8.4-fpm-alpine AS app
 WORKDIR /var/www/html
 
 # System + PHP extensions (pdo_mysql for MariaDB, pcntl for Reverb, gd/zip for images/export)
-RUN apk add --no-cache libpng-dev libzip-dev icu-dev oniguruma-dev \
+RUN apk add --no-cache libpng-dev libzip-dev icu-dev oniguruma-dev su-exec \
     && docker-php-ext-configure gd \
     && docker-php-ext-install -j"$(nproc)" pdo_mysql pcntl gd zip intl bcmath opcache \
     && rm -rf /var/cache/apk/*
@@ -40,6 +40,7 @@ RUN mkdir -p storage/framework/cache storage/framework/sessions \
         storage/framework/views storage/logs bootstrap/cache database \
     && touch database/database.sqlite \
     && chown -R www-data:www-data storage bootstrap/cache database \
+    && cp -a public /opt/public-dist \
     && cp docker/entrypoint.sh /usr/local/bin/entrypoint \
     && chmod +x /usr/local/bin/entrypoint
 
@@ -86,4 +87,9 @@ ENV APP_ENV=production \
 VOLUME ["/var/www/html/storage"]
 
 EXPOSE 80
+
+# Gesundheitscheck: Web (Laravel /up) UND WebSocket-Server (Reverb) müssen antworten.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1/up && nc -z 127.0.0.1 8080 || exit 1
+
 CMD ["supervisord", "-c", "/etc/supervisord.conf"]

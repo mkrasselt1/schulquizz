@@ -27,9 +27,10 @@ class QuestionDefaults
         // Lückentext bekommt einen Beispielsatz mit einer Lücke, damit sofort klar ist,
         // wie Lücken markiert werden.
         $prompt = $type === 'cloze'
-            ? 'Die Hauptstadt von Deutschland ist [[Berlin]].'
+            ? ($game->base_locale === 'en' ? 'The capital of Germany is [[Berlin]].' : 'Die Hauptstadt von Deutschland ist [[Berlin]].')
             : '';
-        $question->setTranslations('prompt_text', ['de' => $prompt]);
+        $locale = $game->base_locale ?: 'de';
+        $question->setTranslations('prompt_text', [$locale => $prompt]);
         $question->save();
 
         foreach (self::defaultOptions($type) as $i => $opt) {
@@ -38,7 +39,7 @@ class QuestionDefaults
                 'mode' => 'text',
                 'is_correct' => $opt['is_correct'] ?? false,
             ]);
-            $option->setTranslations('text', ['de' => $opt['text']]);
+            $option->setTranslations('text', [$locale => $opt['text']]);
             $option->save();
         }
 

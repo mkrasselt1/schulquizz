@@ -61,6 +61,19 @@ watch(
     { immediate: true },
 );
 const dragI = ref<number | null>(null);
+// Touch-Geräte: HTML5-Drag&Drop funktioniert dort oft nicht → Pfeil-Knöpfe.
+function moveItem(i: number, dir: -1 | 1) {
+    const j = i + dir;
+    if (props.disabled || j < 0 || j >= order.value.length) return;
+    const arr = [...order.value];
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    order.value = arr;
+    answer.value = arr.map((o) => o.id);
+}
+function setEstimate(raw: string) {
+    const n = raw.trim() === '' ? NaN : Number(raw.replace(',', '.'));
+    answer.value = Number.isFinite(n) ? n : undefined;
+}
 function dropAt(i: number) {
     if (dragI.value === null || dragI.value === i) return;
     const arr = [...order.value];
@@ -126,7 +139,11 @@ function onSlider() {
                 <span class="text-gray-300">⠿</span>
                 <span class="w-6 text-center font-bold text-indigo-500">{{ i + 1 }}</span>
                 <img v-if="o.image_url" :src="o.image_url" class="h-10 w-10 rounded object-cover" alt="" />
-                <span>{{ optText(o) }}</span>
+                <span class="flex-1">{{ optText(o) }}</span>
+                <span class="flex flex-col">
+                    <button type="button" class="px-2 text-lg leading-none text-gray-500 disabled:opacity-30" :disabled="disabled || i === 0" @click="moveItem(i, -1)">▲</button>
+                    <button type="button" class="px-2 text-lg leading-none text-gray-500 disabled:opacity-30" :disabled="disabled || i === order.length - 1" @click="moveItem(i, 1)">▼</button>
+                </span>
             </div>
         </div>
 
@@ -159,8 +176,9 @@ function onSlider() {
         <div v-else-if="question.type === 'estimate'" class="flex items-center gap-2">
             <input
                 type="number"
+                inputmode="decimal"
                 :value="answer"
-                @input="answer = Number(($event.target as HTMLInputElement).value)"
+                @input="setEstimate(($event.target as HTMLInputElement).value)"
                 :disabled="disabled"
                 :class="inputClass"
                 :placeholder="t('play.typeAnswer')"

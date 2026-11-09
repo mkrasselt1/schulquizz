@@ -5,6 +5,7 @@ on:
     branches: [main]
     tags: ['*']
   pull_request:
+  workflow_dispatch:
 
 jobs:
   # 1) Unit-/Feature-Tests gegen SQLite (schnell) + Frontend-Build-Prüfung
@@ -58,3 +59,42 @@ jobs:
       - uses: actions/checkout@v4
       - name: Smoke-Test (echtes Image + MariaDB)
         run: bash scripts/smoke-test.sh
+
+  # 3) Docker-Image veröffentlichen – NUR wenn Tests UND Smoke-Test grün sind.
+  #    Bei jedem Tag (z. B. dev-0.22) sowie manuell über "Run workflow".
+  #    Benötigt die Repository-Secrets DOCKERHUB_USERNAME und DOCKERHUB_TOKEN.
+  publish:
+    needs: [tests, smoke]
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Bei Docker Hub anmelden
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Metadaten / Tags ableiten
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/schulquizz
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest
+
+      - name: Bauen & Pushen (self-contained Standalone-Image)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: standalone
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
