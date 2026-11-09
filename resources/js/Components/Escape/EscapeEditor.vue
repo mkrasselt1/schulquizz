@@ -255,6 +255,26 @@ function save() {
 }
 
 const imageUrl = computed(() => (room.value?.image_path ? props.mediaBase + room.value.image_path : ''));
+const imageBroken = ref(false);
+watch(imageUrl, () => (imageBroken.value = false));
+
+// Neues Hintergrundbild direkt speichern – sonst ist es nach einem Neuladen weg.
+watch(
+    () => data.value.rooms.map((r) => r.image_path).join('|'),
+    (now, before) => {
+        if (!loading && now !== before) save();
+    },
+);
+
+// Vor dem Verlassen mit ungespeicherten Änderungen warnen.
+function beforeUnload(e: BeforeUnloadEvent) {
+    if (dirty.value) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+}
+window.addEventListener('beforeunload', beforeUnload);
+onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload));
 </script>
 
 <template>
@@ -332,10 +352,23 @@ const imageUrl = computed(() => (room.value?.image_path ? props.mediaBase + room
                     <div
                         ref="canvas"
                         class="relative w-full cursor-crosshair touch-none select-none overflow-hidden rounded-lg bg-gradient-to-br from-slate-600 to-slate-800"
-                        :class="imageUrl ? '' : 'aspect-video'"
+                        :class="imageUrl && !imageBroken ? '' : 'aspect-video'"
                         @pointerdown="onCanvasDown"
                     >
-                        <img v-if="imageUrl" :src="imageUrl" alt="" class="pointer-events-none block w-full" draggable="false" />
+                        <img
+                            v-if="imageUrl && !imageBroken"
+                            :src="imageUrl"
+                            alt=""
+                            class="pointer-events-none block w-full"
+                            draggable="false"
+                            @error="imageBroken = true"
+                        />
+                        <div
+                            v-if="imageBroken"
+                            class="pointer-events-none absolute inset-x-0 top-0 bg-red-600/90 p-2 text-center text-xs text-white"
+                        >
+                            {{ t('escape.imageBroken') }} ({{ imageUrl }})
+                        </div>
                         <div
                             v-if="!imageUrl && room.hotspots.length === 0"
                             class="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-white/70"

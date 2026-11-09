@@ -232,6 +232,7 @@ export default {
         roomTitle: 'Name des Raums',
         deleteRoom: 'Raum löschen',
         confirmDeleteRoom: 'Diesen Raum mit allen Hotspots löschen?',
+        imageBroken: 'Bild konnte nicht geladen werden',
         background: 'Hintergrundbild',
         canvasEmpty: 'Lade ein Hintergrundbild hoch (z. B. ein Foto vom Klassenzimmer) und ziehe dann Rechtecke auf das Bild.',
         canvasHint: 'Rechteck aufziehen = neuer Hotspot · Hotspot ziehen = verschieben · gelbe Ecke = Größe ändern',

@@ -232,6 +232,7 @@ export default {
         roomTitle: 'Room name',
         deleteRoom: 'Delete room',
         confirmDeleteRoom: 'Delete this room and all its hotspots?',
+        imageBroken: 'Image could not be loaded',
         background: 'Background image',
         canvasEmpty: 'Upload a background image (e.g. a photo of the classroom), then drag rectangles onto it.',
         canvasHint: 'Drag a rectangle = new hotspot · drag a hotspot = move · yellow corner = resize',
