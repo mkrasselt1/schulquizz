@@ -212,7 +212,7 @@ class PuzzleData
     }
 
     /**
-     * Neue Raumstruktur aus dem MCP-Format übernehmen. Bilder (nur im Editor hochladbar)
+     * Neue Raumstruktur aus dem MCP-Format übernehmen. Bilder (Editor-Upload oder set-escape-image)
      * und andere Sprachfassungen bleiben für gleiche IDs erhalten.
      */
     public static function applyEscape(Game $game, array $input): Game
@@ -268,8 +268,56 @@ class PuzzleData
             'outro' => $merge($old['outro'] ?? [], $input['outro'] ?? null),
             'time_limit' => array_key_exists('time_limit_minutes', $input) ? $input['time_limit_minutes'] : ($old['time_limit'] ?? 30),
             'show_hotspots' => $input['show_hotspots'] ?? ($old['show_hotspots'] ?? true),
+            // „Jederzeit spielbar“ steuert eine dauerhafte Sitzung – nur im Editor änderbar, MCP behält den Wert.
+            'always_open' => $old['always_open'] ?? false,
             'rooms' => $rooms ?: ($old['rooms'] ?? []),
         ], $game);
+        $game->save();
+
+        return $game;
+    }
+
+    /**
+     * Bild eines Raums (Hintergrund) oder eines Hinweis-Hotspots setzen.
+     * $store legt das Bild erst ab, wenn das Ziel feststeht (keine verwaisten Dateien bei Tippfehlern).
+     *
+     * @param  callable(): ?string  $store  liefert den gespeicherten Pfad oder null (ungültiges Bild)
+     */
+    public static function setEscapeImage(Game $game, string $roomId, ?string $hotspotId, callable $store): Game
+    {
+        $escape = EscapeRoom::of($game);
+        $ri = collect($escape['rooms'] ?? [])->search(fn ($r) => $r['id'] === $roomId);
+        if ($ri === false) {
+            throw ValidationException::withMessages([
+                'room_id' => 'Raum nicht gefunden. Vorhandene IDs: '.implode(', ', array_column($escape['rooms'] ?? [], 'id')),
+            ]);
+        }
+
+        $hi = null;
+        if ($hotspotId !== null && $hotspotId !== '') {
+            $hi = collect($escape['rooms'][$ri]['hotspots'] ?? [])->search(fn ($h) => $h['id'] === $hotspotId);
+            if ($hi === false) {
+                throw ValidationException::withMessages(['hotspot_id' => 'Hotspot in diesem Raum nicht gefunden.']);
+            }
+            if ($escape['rooms'][$ri]['hotspots'][$hi]['kind'] !== 'clue') {
+                throw ValidationException::withMessages(['hotspot_id' => 'Bilder gibt es nur für Hinweis-Hotspots (kind "clue").']);
+            }
+        }
+
+        $path = $store();
+        if ($path === null) {
+            throw ValidationException::withMessages([
+                'image' => 'Ungültiges Bild. Erlaubt: SVG (ohne Skripte/externe Verweise, max. 512 KB) oder PNG/JPEG/WebP/GIF als Base64 (max. 10 MB).',
+            ]);
+        }
+
+        if ($hi === null) {
+            $escape['rooms'][$ri]['image_path'] = $path;
+        } else {
+            $escape['rooms'][$ri]['hotspots'][$hi]['image_path'] = $path;
+        }
+        // Alte Datei räumt der Cleanup-Befehl auf (nicht mehr referenziert).
+        $game->escape = EscapeRoom::sanitize($escape, $game);
         $game->save();
 
         return $game;
@@ -287,7 +335,7 @@ class PuzzleData
                 $out[] = "{$name}: kein Schloss (lock) – hier kommt niemand weiter.";
             }
             if (empty($r['image_path'])) {
-                $out[] = "{$name}: noch kein Hintergrundbild (bitte im Editor hochladen).";
+                $out[] = "{$name}: noch kein Hintergrundbild (set-escape-image oder im Editor hochladen).";
             }
             foreach ($r['hotspots'] ?? [] as $h) {
                 $hn = self::tr($h['label'] ?? [], $locale) ?: $h['id'];

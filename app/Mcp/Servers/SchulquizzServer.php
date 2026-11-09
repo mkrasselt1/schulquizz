@@ -7,6 +7,7 @@ use App\Mcp\Tools\CreatePuzzle;
 use App\Mcp\Tools\DeletePuzzle;
 use App\Mcp\Tools\GetGame;
 use App\Mcp\Tools\ListGames;
+use App\Mcp\Tools\SetEscapeImage;
 use App\Mcp\Tools\SetEscapeRooms;
 use App\Mcp\Tools\UpdatePuzzle;
 use Laravel\Mcp\Server;
@@ -34,8 +35,11 @@ Typischer Ablauf für einen Escape-Room:
    - lock: verlangt "code"; öffnet den nächsten Raum, im letzten Raum ist es der Ausgang
    "requires": Liste von Hotspot-IDs (puzzle/lock), die erst gelöst sein müssen.
    Belohnungen sollten zusammen den Code ergeben, damit das Rätsel lösbar ist.
-4. Prüfe die "warnings" in der Antwort und behebe sie.
-Hintergrundbilder kann nur die Lehrkraft im Editor hochladen – weise sie darauf hin.
+4. set-escape-image: Hintergrundbild je Raum setzen – am besten selbst als SVG zeichnen
+   (Querformat, z. B. viewBox="0 0 1600 900"), die Gegenstände dort platzieren, wo die
+   Hotspots liegen (x/y/w/h in Prozent des Bildes). Mit hotspot_id bekommt ein Hinweis
+   (clue) ein eigenes Bild. Alternativ PNG/JPEG/WebP/GIF als Base64.
+5. Prüfe die "warnings" in der Antwort und behebe sie.
 Texte werden in der Basissprache des Spiels gespeichert (base_locale).
 TXT)]
 class SchulquizzServer extends Server
@@ -48,5 +52,6 @@ class SchulquizzServer extends Server
         UpdatePuzzle::class,
         DeletePuzzle::class,
         SetEscapeRooms::class,
+        SetEscapeImage::class,
     ];
 }

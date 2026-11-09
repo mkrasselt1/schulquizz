@@ -118,8 +118,9 @@ Escape-Räume per Chat anzulegen und zu bearbeiten. Adresse: `https://<eure-doma
 
 - Anmeldung per **OAuth 2.1**: Der Assistent registriert sich selbst, die Lehrkraft meldet sich an
   und klickt „Erlauben“. Kein Token-Kopieren.
-- Werkzeuge: Spiele auflisten/ansehen/anlegen, Rätsel anlegen/ändern/löschen, Escape-Räume festlegen.
-- Zugriff nur auf **eigene** Spiele – keine Schülerdaten, keine Live-Spiele, keine Bild-Uploads.
+- Werkzeuge: Spiele auflisten/ansehen/anlegen, Rätsel anlegen/ändern/löschen, Escape-Räume festlegen,
+  Raum- und Hinweisbilder setzen (der Assistent kann sie selbst als SVG zeichnen; wird bereinigt).
+- Zugriff nur auf **eigene** Spiele – keine Schülerdaten, keine Live-Spiele.
 - Widerrufen: Profil → „KI-Assistenten (MCP)“ → „Zugriff entziehen“.
 
 ## Datenschutz in Kürze

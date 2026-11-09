@@ -177,5 +177,8 @@ self-hostbar, DE/EN, wiederverwendbare Layout-Bausteine.
   fällt das Lehrergerät mitten im Spiel aus, ist der Live-Stand weg (localStorage überlebt Reload).
 - **Basis-Sperrliste** ist absichtlich knapp; bitte fachlich/redaktionell erweitern.
 - **Welcome.vue** (Breeze-Default) ist verwaist, aber harmlos – kann gelöscht werden.
-- **Bilder per MCP** sind bewusst nicht möglich (Hintergrundbilder lädt die Lehrkraft im Editor hoch).
+- **Bilder per MCP** (`set-escape-image`): Raum-/Hinweisbilder als SVG (vom Assistenten gezeichnet)
+  oder Base64-Rasterbild. SVG wird per strenger Positivliste bereinigt (`SvgSanitizer`: keine Skripte,
+  Event-Handler, foreignObject/image/style, externen Verweise, DOCTYPE/Entities); nginx liefert
+  `/storage/*.svg` zusätzlich mit `Content-Security-Policy: default-src 'none'` aus.
 - **APP_KEY im Docker**: wird automatisch erzeugt und im Volume `storage/` gespeichert – Volume einrichten!

@@ -3,6 +3,13 @@
 Versionen = Git-Tags = Docker-Image-Tags auf Docker Hub (`mkrasselt1/schulquizz:<version>`).
 `latest` zeigt immer auf die neueste Version.
 
+## dev-0.25
+- **Bilder per KI-Assistent (MCP):** neues Werkzeug `set-escape-image` setzt Raum-Hintergründe
+  und Hinweis-Bilder – als SVG (der Assistent kann Szenen selbst zeichnen) oder PNG/JPEG/WebP/GIF.
+- SVGs werden streng bereinigt (keine Skripte, keine externen Verweise); nginx liefert
+  `/storage/*.svg` zusätzlich mit gesperrter Content-Security-Policy aus.
+- Import übernimmt SVG-Bilder (bereinigt); Raumbearbeitung per MCP lässt „jederzeit spielbar“ unverändert.
+
 ## dev-0.24
 - **Escape-Rooms „jederzeit spielbar“:** Schalter im Editor; Schüler spielen jederzeit über den
   festen QR-Code/Link, jede:r mit eigener Zeit ab dem eigenen Start. Bleibt offen, bis die

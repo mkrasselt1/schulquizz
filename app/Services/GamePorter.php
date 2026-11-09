@@ -6,6 +6,7 @@ use App\Models\Game;
 use App\Models\Question;
 use App\Models\User;
 use App\Support\EscapeRoom;
+use App\Support\GameImage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -213,6 +214,11 @@ class GamePorter
         $binary = base64_decode($image['data'], true);
         if ($binary === false) {
             return null;
+        }
+
+        // SVG nur bereinigt übernehmen (kein Script über präparierte Import-Dateien)
+        if (($image['mime'] ?? null) === 'image/svg+xml') {
+            return GameImage::storeSvg($game, $binary);
         }
 
         $ext = match ($image['mime'] ?? 'image/png') {
