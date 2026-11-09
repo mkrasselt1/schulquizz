@@ -4,9 +4,10 @@
 # Verwendung:
 #   1. .env anlegen: cp .env.docker.example .env  (APP_URL/DB-Passwörter setzen)
 #   2. docker compose -f docker-compose.hub.yml up -d
-#   → App unter http://localhost:8000 (per Reverse-Proxy mit HTTPS ausliefern)
+#   → App unter http://127.0.0.1:8000 (per Reverse-Proxy mit HTTPS ausliefern)
 #
-# Image-Tag bei Bedarf anpassen (IMAGE env, z. B. IMAGE=mkrasselt1/schulquizz:v1.0).
+# Image-Tag bei Bedarf anpassen (IMAGE env, z. B. IMAGE=mkrasselt1/schulquizz:v1.0.0),
+# Host-Port per APP_PORT.
 
 x-logging: &logging
   # Container-Logs begrenzen (Fehler-Logs nicht unbegrenzt aufbewahren)
@@ -32,7 +33,7 @@ services:
       REVERB_SCHEME: http
     ports:
       # Nur lokal binden – davor gehört ein Reverse-Proxy mit HTTPS.
-      - "127.0.0.1:8000:80"
+      - "127.0.0.1:${APP_PORT:-8000}:80"
     volumes:
       - app-storage:/var/www/html/storage
     networks: [schulquizz]
