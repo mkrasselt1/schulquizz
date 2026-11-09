@@ -39,6 +39,13 @@ class PlayController extends Controller
                 ->withErrors(['pin' => 'Das Spiel ist nicht mehr aktiv.']);
         }
 
+        $state = $this->sessions->stateFor($session);
+        // Escape-Daten wie in escape() aufbereiten – sonst fehlt bei dauerhaft geöffneten Räumen
+        // die persönliche Startzeit (Client lädt /play/escape nicht nach, wenn Daten schon da sind).
+        if ($state['escape'] !== null) {
+            $state['escape'] = $this->escapeData($session, $state['escape']);
+        }
+
         return Inertia::render('Play/Play', [
             'participant' => [
                 'token' => $participant['token'],
@@ -46,8 +53,33 @@ class PlayController extends Controller
                 'kind' => $participant['kind'],
             ],
             'sessionKey' => $session->session_key,
-            'state' => $this->sessions->stateFor($session),
+            'state' => $state,
         ]);
+    }
+
+    /**
+     * Ergänzt die schülersichere Raumstruktur um Titel und – bei dauerhaft geöffneten Räumen –
+     * die persönliche Uhr (Start im Teilnehmer-Cookie, nicht in der DB; wird beim ersten Abruf gesetzt).
+     */
+    private function escapeData(GameSession $session, array $data): array
+    {
+        $participant = session('participant');
+        $data['game_title'] = $session->game->title;
+        $data['permanent'] = (bool) ($session->settings['permanent'] ?? false);
+
+        if ($data['permanent']) {
+            $start = $participant['escape_started_at'] ?? null;
+            if (! $start) {
+                $start = now()->toIso8601String();
+                session()->put('participant.escape_started_at', $start);
+            }
+            $data['started_at'] = $start;
+            $data['personal_deadline'] = $data['time_limit']
+                ? Carbon::parse($start)->addMinutes((int) $data['time_limit'])->toIso8601String()
+                : null;
+        }
+
+        return $data;
     }
 
     /**
@@ -128,24 +160,7 @@ class PlayController extends Controller
         abort_unless($session && $session->game->isEscape(), 404);
         abort_unless(in_array($session->status, ['active', 'paused'], true), 409);
 
-        $data = EscapeRoom::forPlayers($session->game);
-        $data['game_title'] = $session->game->title;
-        $data['permanent'] = (bool) ($session->settings['permanent'] ?? false);
-
-        // Dauerhaft geöffnet: Uhr läuft ab dem eigenen Start (im Teilnehmer-Cookie, nicht in der DB).
-        if ($data['permanent']) {
-            $start = $participant['escape_started_at'] ?? null;
-            if (! $start) {
-                $start = now()->toIso8601String();
-                session()->put('participant.escape_started_at', $start);
-            }
-            $data['started_at'] = $start;
-            $data['personal_deadline'] = $data['time_limit']
-                ? Carbon::parse($start)->addMinutes((int) $data['time_limit'])->toIso8601String()
-                : null;
-        }
-
-        return response()->json($data);
+        return response()->json($this->escapeData($session, EscapeRoom::forPlayers($session->game)));
     }
 
     /**
@@ -176,7 +191,9 @@ class PlayController extends Controller
             ? (isset($participant['escape_started_at']) ? Carbon::parse($participant['escape_started_at']) : null)
             : $session->question_started_at;
         if ($permanent && ! $start) {
-            return response()->json(['ok' => false, 'reason' => 'not_started'], 409);
+            // Sicherheitsnetz: eigene Uhr spätestens bei der ersten Prüfung starten.
+            $start = now();
+            session()->put('participant.escape_started_at', $start->toIso8601String());
         }
         $limit = EscapeRoom::of($session->game)['time_limit'] ?? null;
         $deadline = $permanent

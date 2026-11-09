@@ -114,6 +114,33 @@ class PermanentEscapeTest extends TestCase
             ->assertJson(['valid' => false, 'reason' => 'foreign_game']);
     }
 
+    public function test_play_page_starts_personal_clock_so_answers_are_accepted(): void
+    {
+        Event::fake([SessionEvent::class]);
+        [, $game] = $this->escapeGame();
+        app(SessionService::class)->openPermanent($game);
+
+        $this->post('/join', ['join_token' => $game->join_token, 'display_type' => 'name', 'name' => 'Lena']);
+        // Spielseite liefert die Raumdaten mit – der Client ruft /play/escape dann nicht mehr auf.
+        $this->get('/play')->assertInertia(fn ($p) => $p
+            ->where('state.escape.permanent', true)
+            ->whereNot('state.escape.personal_deadline', null));
+
+        $this->postJson('/play/escape/check', ['hotspot_id' => 'h_exit', 'answer' => '42'])
+            ->assertOk()->assertJson(['result' => 'escaped']);
+    }
+
+    public function test_check_without_prior_load_starts_the_clock_instead_of_failing(): void
+    {
+        Event::fake([SessionEvent::class]);
+        [, $game] = $this->escapeGame();
+        app(SessionService::class)->openPermanent($game);
+
+        $this->post('/join', ['join_token' => $game->join_token, 'display_type' => 'name', 'name' => 'Lena']);
+        $this->postJson('/play/escape/check', ['hotspot_id' => 'h_exit', 'answer' => '42'])
+            ->assertOk()->assertJson(['result' => 'escaped']);
+    }
+
     public function test_codes_are_unique_and_tampering_is_detected(): void
     {
         $a = CompletionCode::issue(7, 'Lena', 65_000);

@@ -3,6 +3,11 @@
 Versionen = Git-Tags = Docker-Image-Tags auf Docker Hub (`mkrasselt1/schulquizz:<version>`).
 `latest` zeigt immer auf die neueste Version.
 
+## dev-0.26
+- **Fix:** Bei „jederzeit spielbaren“ Escape-Rooms wurde jede Lösung mit „Pausiert“ abgelehnt,
+  solange die Lehrkraft den Raum nicht zusätzlich gestartet hatte. Die eigene Uhr startet jetzt
+  beim Öffnen der Spielseite (spätestens bei der ersten Eingabe).
+
 ## dev-0.25
 - **Bilder per KI-Assistent (MCP):** neues Werkzeug `set-escape-image` setzt Raum-Hintergründe
   und Hinweis-Bilder – als SVG (der Assistent kann Szenen selbst zeichnen) oder PNG/JPEG/WebP/GIF.
