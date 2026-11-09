@@ -272,6 +272,7 @@ function promptPreview(q: Question): string {
                             :game-id="game.id"
                             :base-locale="game.base_locale"
                             :media-base="mediaBase"
+                            :join-url="game.join_url"
                             :escape="game.escape"
                             :questions="questions"
                         />

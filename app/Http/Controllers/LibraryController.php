@@ -26,6 +26,7 @@ class LibraryController extends Controller
                 'description' => $game->description,
                 'status' => $game->status,
                 'mode' => $game->mode,
+                'always_open' => $game->isEscape() && (bool) ($game->escape['always_open'] ?? false),
                 'join_token' => $game->join_token,
                 'updated_at' => $game->updated_at?->toIso8601String(),
             ]);

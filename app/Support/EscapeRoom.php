@@ -32,6 +32,7 @@ class EscapeRoom
             'outro' => [$locale => ''],
             'time_limit' => 30,
             'show_hotspots' => true,
+            'always_open' => false,
             'rooms' => [self::newRoom($locale, 1)],
         ];
     }
@@ -123,6 +124,7 @@ class EscapeRoom
             'outro' => self::translations($input['outro'] ?? [], 5000),
             'time_limit' => $limit === null || $limit === '' ? null : (int) self::clamp($limit, 1, 600),
             'show_hotspots' => (bool) ($input['show_hotspots'] ?? true),
+            'always_open' => (bool) ($input['always_open'] ?? false),
             'rooms' => $rooms ?: [self::newRoom($game->base_locale ?: 'de', 1)],
         ];
     }

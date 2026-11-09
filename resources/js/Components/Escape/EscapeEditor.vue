@@ -17,6 +17,7 @@ const props = defineProps<{
     gameId: number;
     baseLocale: string;
     mediaBase: string;
+    joinUrl?: string;
     escape: EscapeConfig;
     questions: Question[];
 }>();
@@ -298,6 +299,14 @@ watch(
     },
 );
 
+// "Jederzeit spielbar" sofort wirksam machen.
+watch(
+    () => data.value.always_open,
+    (now, before) => {
+        if (!loading && now !== before) save();
+    },
+);
+
 // Vor dem Verlassen mit ungespeicherten Änderungen warnen.
 function beforeUnload(e: BeforeUnloadEvent) {
     if (dirty.value) {
@@ -348,6 +357,16 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload));
                 <input type="checkbox" v-model="data.show_hotspots" />
                 {{ t('escape.showHotspots') }}
             </label>
+            <div class="rounded-lg border border-gray-200 p-3 md:col-span-2 dark:border-gray-700">
+                <label class="flex items-center gap-2 text-sm font-medium text-gray-800 dark:text-gray-100">
+                    <input type="checkbox" v-model="data.always_open" />
+                    🌐 {{ t('escape.alwaysOpen') }}
+                </label>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('escape.alwaysOpenHint') }}</p>
+                <p v-if="data.always_open && joinUrl" class="mt-2 break-all text-xs text-gray-600 dark:text-gray-300">
+                    🔗 {{ joinUrl }}
+                </p>
+            </div>
         </div>
 
         <!-- Räume -->

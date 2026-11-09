@@ -94,8 +94,50 @@ class SessionService
         $this->broadcastState($session);
     }
 
+    /**
+     * Escape-Room dauerhaft öffnen: eine Session ohne gemeinsame Uhr – jede:r Schüler:in hat
+     * ab dem eigenen Start die volle Zeit. Beitritt über den festen QR-Code/Link.
+     */
+    public function openPermanent(Game $game): GameSession
+    {
+        $running = GameSession::activeForGame($game);
+        if ($running && ($running->settings['permanent'] ?? false)) {
+            return $running;
+        }
+        if ($running) {
+            throw new \RuntimeException('running');
+        }
+
+        $session = $this->start($game, [
+            'join_method' => 'qr',
+            'advance_mode' => 'free',
+            'settings' => ['permanent' => true],
+        ]);
+        $session->status = 'active';
+        $session->current_phase = 'escape';
+        $session->question_started_at = Carbon::now();
+        $session->question_deadline = null;
+        $session->save();
+
+        return $session;
+    }
+
+    public function closePermanent(Game $game): void
+    {
+        $running = GameSession::activeForGame($game);
+        if ($running && ($running->settings['permanent'] ?? false)) {
+            $this->end($running);
+        }
+    }
+
     public function end(GameSession $session): void
     {
+        // Dauerhaft geöffneten Raum beenden = Schalter im Editor ebenfalls aus.
+        if (($session->settings['permanent'] ?? false) && $session->game?->escape) {
+            $game = $session->game;
+            $game->escape = [...$game->escape, 'always_open' => false];
+            $game->save();
+        }
         $session->update(['status' => 'ended', 'ended_at' => Carbon::now()]);
         SessionEvent::send($session->session_key, 'ended', ['message' => 'Spiel beendet']);
     }
@@ -219,6 +261,7 @@ class SessionService
         return [
             'server_time' => self::serverTime(),
             'mode' => $isEscape ? 'escape' : 'quiz',
+            'permanent' => (bool) ($session->settings['permanent'] ?? false),
             // Raumstruktur erst nach dem Start (keine Vorschau in der Lobby).
             'escape' => $withEscape && $isEscape && in_array($session->status, ['active', 'paused'], true)
                 ? EscapeRoom::forPlayers($session->game)

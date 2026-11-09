@@ -6,6 +6,7 @@ import AnswerInput from '@/Components/Play/AnswerInput.vue';
 import { tr, type Translations } from '@/types/quiz';
 import { formatClock, HOTSPOT_ICON, type PublicEscape, type PublicHotspot } from '@/types/escape';
 import { serverNow } from '@/lib/serverClock';
+import { useCountdown } from '@/Composables/useCountdown';
 
 /**
  * Escape-Room aus Schülersicht. Selbstgesteuert: Räume erkunden, Hinweise finden,
@@ -55,10 +56,18 @@ interface Progress {
     solved: Record<string, Translations | null>; // Hotspot-ID → Belohnung
     escapedMs: number | null;
     receipts: any[]; // signierte Quittungen (für erneute Meldung an die Lehrkraft)
+    completion: { code: string; name: string; elapsed_ms: number; game_title: string; verify_url: string } | null;
 }
 
 const storageKey = `schulquizz.escape.${props.sessionKey}.${props.participantToken}`;
-const progress = reactive<Progress>({ introSeen: false, room: 0, solved: {}, escapedMs: null, receipts: [] });
+const progress = reactive<Progress>({
+    introSeen: false,
+    room: 0,
+    solved: {},
+    escapedMs: null,
+    receipts: [],
+    completion: null,
+});
 try {
     Object.assign(progress, JSON.parse(localStorage.getItem(storageKey) || '{}'));
 } catch {
@@ -76,7 +85,51 @@ const room = computed(() => escape.value?.rooms[progress.room] ?? null);
 const introText = computed(() => (escape.value ? tr(escape.value.intro, locale.value) : ''));
 const outroText = computed(() => (escape.value ? tr(escape.value.outro, locale.value) : ''));
 const showIntro = computed(() => !!introText.value.trim() && !progress.introSeen);
-const timeUp = computed(() => props.remaining === 0 && progress.escapedMs === null);
+// Dauerhaft geöffnet: eigene Uhr ab dem eigenen Start; sonst gemeinsame Uhr der Klasse.
+const { remaining: personalRemaining } = useCountdown(() => escape.value?.personal_deadline ?? null);
+const remaining = computed(() => (escape.value?.permanent ? personalRemaining.value : props.remaining));
+const timeUp = computed(() => remaining.value === 0 && progress.escapedMs === null);
+
+// Nachricht zum Kopieren (z. B. für den Schul-Chat)
+const copied = ref(false);
+const completionMessage = computed(() => {
+    const c = progress.completion;
+    if (!c) return '';
+    return t('escape.completionMessage', {
+        game: c.game_title,
+        name: c.name,
+        time: formatClock(c.elapsed_ms / 1000),
+        code: c.code,
+        url: c.verify_url,
+    });
+});
+async function copyMessage() {
+    try {
+        await navigator.clipboard.writeText(completionMessage.value);
+    } catch {
+        // Fallback für ältere Geräte
+        const ta = document.createElement('textarea');
+        ta.value = completionMessage.value;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+    }
+    copied.value = true;
+    setTimeout(() => (copied.value = false), 2500);
+}
+async function shareMessage() {
+    if ((navigator as any).share) {
+        try {
+            await (navigator as any).share({ text: completionMessage.value });
+            return;
+        } catch {
+            /* abgebrochen → kopieren */
+        }
+    }
+    copyMessage();
+}
+const canShare = typeof navigator !== 'undefined' && !!(navigator as any).share;
 
 function isSolved(h: PublicHotspot): boolean {
     return h.id in progress.solved;
@@ -135,7 +188,10 @@ async function check() {
             close();
             flash(t('escape.doorOpens'));
         } else if (res.data.result === 'escaped') {
-            progress.escapedMs = props.startedAt ? serverNow() - new Date(props.startedAt).getTime() : 0;
+            progress.escapedMs =
+                res.data.receipt?.elapsed_ms ??
+                (props.startedAt ? serverNow() - new Date(props.startedAt).getTime() : 0);
+            progress.completion = res.data.completion ?? null;
             close();
         }
     } catch (e: any) {
@@ -195,6 +251,24 @@ function hotspotTitle(h: PublicHotspot): string {
                 {{ t('escape.yourTime') }}: <span class="font-mono font-bold">{{ formatClock(progress.escapedMs / 1000) }}</span>
             </p>
             <p v-if="outroText" class="mx-auto mt-6 max-w-xl whitespace-pre-line text-gray-700 dark:text-gray-200">{{ outroText }}</p>
+
+            <!-- Abschluss-Code (Nachweis für die Lehrkraft) -->
+            <div v-if="progress.completion" class="mx-auto mt-8 max-w-xl rounded-xl border-2 border-dashed border-indigo-300 p-4 text-left dark:border-indigo-700">
+                <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">📜 {{ t('escape.completionTitle') }}</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('escape.completionHint') }}</p>
+                <p class="mt-3 select-all break-all text-center font-mono text-lg font-bold tracking-wide text-indigo-700 dark:text-indigo-300">
+                    {{ progress.completion.code }}
+                </p>
+                <pre class="mt-3 select-all whitespace-pre-wrap rounded-lg bg-gray-50 p-3 text-sm text-gray-800 dark:bg-gray-900 dark:text-gray-200">{{ completionMessage }}</pre>
+                <div class="mt-3 flex flex-wrap justify-center gap-2">
+                    <button type="button" class="rounded-lg bg-indigo-600 px-4 py-2 text-white" @click="copyMessage">
+                        {{ copied ? '✓ ' + t('escape.copied') : '📋 ' + t('escape.copyMessage') }}
+                    </button>
+                    <button v-if="canShare" type="button" class="rounded-lg border border-indigo-600 px-4 py-2 text-indigo-700 dark:text-indigo-300" @click="shareMessage">
+                        📤 {{ t('escape.shareMessage') }}
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Zeit abgelaufen -->

@@ -34,6 +34,13 @@ nur „gelöst/nicht gelöst“ live an die Lehrkraft. Den eigenen Fortschritt h
 (`localStorage`) zusammen mit signierten Quittungen, damit er nach einem Neuladen des Leitstands
 erneut gemeldet werden kann.
 
+**Jederzeit spielbare Escape-Rooms & Abschluss-Codes:** Bei dauerhaft geöffneten Räumen liegt
+die persönliche Startzeit nur im Teilnehmer-Cookie. Beim Entkommen erzeugt der Server einen
+signierten Abschluss-Code (enthält Spiel, Datum, benötigte Zeit – nicht den Namen); der Name wird
+nur in die Signatur eingerechnet. Gespeichert wird nichts: Die Schülerin/der Schüler schickt den
+Code selbst an die Lehrkraft, die ihn auf der Prüfseite kontrolliert. Fortschritt, den niemand
+live im Leitstand verfolgt, wird nirgends festgehalten.
+
 **Auf dem Schülergerät** (`localStorage`/Cookie) liegen nur: Teilnehmer-Pseudonym, die zuletzt
 abgegebene Antwort der aktuellen Frage bzw. der Escape-Fortschritt – damit ein Neuladen nichts
 kaputt macht. Die serverseitige Teilnehmer-Session ist ein Cookie ohne Datenbankeintrag zu Antworten.

@@ -230,6 +230,9 @@ const clock = computed(() =>
 
                 <Card :title="t('control.title')">
                     <!-- Escape-Room-Steuerung -->
+                    <p v-if="isEscape && state.permanent" class="mb-3 rounded-md bg-green-50 p-2 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-200">
+                        🌐 {{ t('escape.permanentInfo') }}
+                    </p>
                     <div v-if="isEscape" class="grid grid-cols-2 gap-2">
                         <PrimaryButton
                             v-if="state.status === 'lobby'"
@@ -239,7 +242,7 @@ const clock = computed(() =>
                             🔐 {{ t('escape.start') }}
                         </PrimaryButton>
                         <template v-else>
-                            <SecondaryButton @click="addEscapeTime">⏱ {{ t('escape.addTime') }}</SecondaryButton>
+                            <SecondaryButton v-if="!state.permanent" @click="addEscapeTime">⏱ {{ t('escape.addTime') }}</SecondaryButton>
                             <SecondaryButton v-if="state.status === 'active'" @click="pause">
                                 ⏸ {{ t('control.pause') }}
                             </SecondaryButton>
@@ -329,6 +332,9 @@ const clock = computed(() =>
                         </tbody>
                     </table>
                     <p class="mt-3 text-xs text-gray-400">{{ t('escape.progressHint') }}</p>
+                    <a :href="route('escape.verify')" class="mt-2 inline-block text-sm text-indigo-600 underline dark:text-indigo-400">
+                        ✅ {{ t('verify.title') }}
+                    </a>
                 </Card>
             </div>
 

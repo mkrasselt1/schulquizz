@@ -17,6 +17,7 @@ interface GameItem {
     description: string | null;
     status: string;
     mode: 'quiz' | 'escape';
+    always_open?: boolean;
     join_token: string;
     updated_at: string | null;
 }
@@ -142,6 +143,7 @@ function formatDate(iso: string | null): string {
                             <div class="flex items-start justify-between gap-2">
                                 <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
                                     <span v-if="game.mode === 'escape'" :title="t('escape.modeEscape')">🔐</span>
+                                    <span v-if="game.always_open" :title="t('escape.alwaysOpen')">🌐</span>
                                     {{ game.title }}
                                 </h3>
                                 <span
@@ -167,6 +169,9 @@ function formatDate(iso: string | null): string {
                             <PrimaryButton @click="openStart(game)">▶ {{ t('library.startNow') }}</PrimaryButton>
                             <Link :href="route('games.edit', game.id)">
                                 <SecondaryButton>{{ t('library.edit') }}</SecondaryButton>
+                            </Link>
+                            <Link v-if="game.mode === 'escape'" :href="route('escape.verify')">
+                                <SecondaryButton>✅ {{ t('verify.short') }}</SecondaryButton>
                             </Link>
                             <SecondaryButton @click="duplicate(game)">
                                 {{ t('library.duplicate') }}

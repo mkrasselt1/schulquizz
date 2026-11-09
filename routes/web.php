@@ -3,6 +3,7 @@
 use App\Http\Controllers\BlocklistController;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\EscapeController;
+use App\Http\Controllers\EscapeVerifyController;
 use App\Http\Controllers\GameEditorController;
 use App\Http\Controllers\GameExportController;
 use App\Http\Controllers\JoinController;
@@ -72,6 +73,10 @@ Route::middleware('auth')->group(function () {
 
     // Medien-Upload (lokal, keine externen Dienste)
     Route::post('/games/{game}/media', [MediaController::class, 'store'])->name('media.store');
+
+    // Escape-Room: Abschluss-Codes prüfen
+    Route::get('/escape/verify', [EscapeVerifyController::class, 'show'])->name('escape.verify');
+    Route::post('/escape/verify', [EscapeVerifyController::class, 'check'])->middleware('throttle:60,1')->name('escape.verify.check');
 
     // Moderation (Wort-Sperrliste, pro Lehrkraft)
     Route::get('/moderation', [BlocklistController::class, 'index'])->name('moderation');

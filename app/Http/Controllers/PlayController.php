@@ -6,6 +6,8 @@ use App\Events\SessionEvent;
 use App\Models\GameSession;
 use App\Services\SessionService;
 use App\Support\AnswerGrader;
+use App\Support\CompletionCode;
+use Illuminate\Support\Carbon;
 use App\Support\EscapeRoom;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -126,7 +128,24 @@ class PlayController extends Controller
         abort_unless($session && $session->game->isEscape(), 404);
         abort_unless(in_array($session->status, ['active', 'paused'], true), 409);
 
-        return response()->json(EscapeRoom::forPlayers($session->game));
+        $data = EscapeRoom::forPlayers($session->game);
+        $data['game_title'] = $session->game->title;
+        $data['permanent'] = (bool) ($session->settings['permanent'] ?? false);
+
+        // Dauerhaft geöffnet: Uhr läuft ab dem eigenen Start (im Teilnehmer-Cookie, nicht in der DB).
+        if ($data['permanent']) {
+            $start = $participant['escape_started_at'] ?? null;
+            if (! $start) {
+                $start = now()->toIso8601String();
+                session()->put('participant.escape_started_at', $start);
+            }
+            $data['started_at'] = $start;
+            $data['personal_deadline'] = $data['time_limit']
+                ? Carbon::parse($start)->addMinutes((int) $data['time_limit'])->toIso8601String()
+                : null;
+        }
+
+        return response()->json($data);
     }
 
     /**
@@ -152,7 +171,18 @@ class PlayController extends Controller
         if ($session->status !== 'active') {
             return response()->json(['ok' => false, 'reason' => $session->status], 409);
         }
-        if ($session->question_deadline && $session->question_deadline->isPast()) {
+        $permanent = (bool) ($session->settings['permanent'] ?? false);
+        $start = $permanent
+            ? (isset($participant['escape_started_at']) ? Carbon::parse($participant['escape_started_at']) : null)
+            : $session->question_started_at;
+        if ($permanent && ! $start) {
+            return response()->json(['ok' => false, 'reason' => 'not_started'], 409);
+        }
+        $limit = EscapeRoom::of($session->game)['time_limit'] ?? null;
+        $deadline = $permanent
+            ? ($limit ? $start->copy()->addMinutes((int) $limit) : null)
+            : $session->question_deadline;
+        if ($deadline && $deadline->copy()->addSeconds(3)->isPast()) {
             return response()->json(['ok' => false, 'reason' => 'time_up'], 409);
         }
 
@@ -172,9 +202,7 @@ class PlayController extends Controller
             $correct = EscapeRoom::codeMatches($hotspot['code'], $data['answer'] ?? null);
         }
 
-        $elapsed = $session->question_started_at
-            ? (int) $session->question_started_at->diffInMilliseconds(now())
-            : null;
+        $elapsed = $start ? (int) $start->diffInMilliseconds(now()) : null;
 
         // Was passiert bei Erfolg? Schloss → nächster Raum, im letzten Raum → entkommen.
         $result = null;
@@ -220,6 +248,14 @@ class PlayController extends Controller
             // Lehrkraft erneut melden (z. B. nachdem deren Seite neu geladen wurde) –
             // fälschungssicher, ohne dass der Server etwas speichert.
             'receipt' => $receipt,
+            // Abschluss-Code: nur beim Entkommen, an den Namen gebunden, vom Lehrer prüfbar.
+            'completion' => $result === 'escaped' ? [
+                'code' => CompletionCode::issue($session->game_id, $participant['label'], (int) $elapsed),
+                'name' => $participant['label'],
+                'elapsed_ms' => $elapsed,
+                'game_title' => $session->game->title,
+                'verify_url' => route('escape.verify'),
+            ] : null,
         ]);
     }
 

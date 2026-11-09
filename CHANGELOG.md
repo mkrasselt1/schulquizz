@@ -3,6 +3,15 @@
 Versionen = Git-Tags = Docker-Image-Tags auf Docker Hub (`mkrasselt1/schulquizz:<version>`).
 `latest` zeigt immer auf die neueste Version.
 
+## dev-0.24
+- **Escape-Rooms „jederzeit spielbar“:** Schalter im Editor; Schüler spielen jederzeit über den
+  festen QR-Code/Link, jede:r mit eigener Zeit ab dem eigenen Start. Bleibt offen, bis die
+  Lehrkraft den Schalter ausschaltet oder das Spiel im Leitstand beendet.
+- **Abschluss-Code** beim Entkommen (auch im Klassenmodus): individuell, einzigartig, an den
+  Namen gebunden und fälschungssicher – mit fertiger Nachricht zum Kopieren/Teilen (z. B. Schul-Chat).
+- Neue Seite **„Abschluss-Codes prüfen“** für Lehrkräfte (Nachricht einfügen → echt/unecht, Name,
+  Zeit, Datum). Es wird nichts gespeichert.
+
 ## dev-0.23
 - **KI-Assistenten (MCP-Schnittstelle)** unter `/mcp` mit Anmeldung per OAuth 2.1:
   Spiele auflisten/ansehen/anlegen, Rätsel anlegen/ändern/löschen, Escape-Räume festlegen.

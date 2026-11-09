@@ -32,6 +32,7 @@ export interface EscapeConfig {
     outro: Translations;
     time_limit: number | null; // Minuten
     show_hotspots: boolean;
+    always_open?: boolean; // jederzeit spielbar (eigene Zeit pro Schüler)
     rooms: EscapeRoomData[];
 }
 
@@ -60,6 +61,10 @@ export interface PublicRoom {
 }
 
 export interface PublicEscape {
+    game_title?: string;
+    permanent?: boolean;
+    started_at?: string;
+    personal_deadline?: string | null;
     intro: Translations;
     outro: Translations;
     time_limit: number | null;

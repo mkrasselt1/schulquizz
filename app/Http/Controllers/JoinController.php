@@ -110,6 +110,8 @@ class JoinController extends Controller
                 'token' => $token,
                 'label' => $label,
                 'kind' => $kind,
+                // Persönliche Startzeit (dauerhafte Escape-Rooms) beim Wiederverbinden behalten.
+                'escape_started_at' => $sameSession ? ($previous['escape_started_at'] ?? null) : null,
             ],
         ]);
 

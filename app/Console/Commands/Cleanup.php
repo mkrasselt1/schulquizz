@@ -36,7 +36,9 @@ class Cleanup extends Command
         // 1) Verwaiste Live-Sessions beenden
         $stale = GameSession::whereIn('status', ['lobby', 'active', 'paused'])
             ->where('updated_at', '<', Carbon::now()->subHours((int) $this->option('stale-hours')))
-            ->get();
+            ->get()
+            // Dauerhaft geöffnete Escape-Rooms bleiben offen.
+            ->reject(fn (GameSession $s) => (bool) ($s->settings['permanent'] ?? false));
         if (! $dry) {
             $stale->each(fn (GameSession $s) => $sessions->end($s));
         }
