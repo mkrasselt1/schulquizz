@@ -194,7 +194,16 @@ class GamePorter
         }
 
         $contents = Storage::disk('public')->get($path);
-        $mime = Storage::disk('public')->mimeType($path) ?: 'image/png';
+        // Typ über die Endung (wir speichern selbst mit passender Endung) – Inhaltserkennung
+        // meldet SVG je nach libmagic-Version als text/xml o. Ä., dann wäre es beim Import weg.
+        $mime = match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+            'svg' => 'image/svg+xml',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            'png' => 'image/png',
+            default => Storage::disk('public')->mimeType($path) ?: 'image/png',
+        };
 
         return [
             'mime' => $mime,
@@ -216,21 +225,12 @@ class GamePorter
             return null;
         }
 
-        // SVG nur bereinigt übernehmen (kein Script über präparierte Import-Dateien)
-        if (($image['mime'] ?? null) === 'image/svg+xml') {
-            return GameImage::storeSvg($game, $binary);
-        }
-
-        $ext = match ($image['mime'] ?? 'image/png') {
-            'image/jpeg', 'image/jpg' => 'jpg',
-            'image/webp' => 'webp',
-            'image/gif' => 'gif',
-            default => 'png',
-        };
-        $path = "game-images/{$game->id}/".\Illuminate\Support\Str::random(20).'.'.$ext;
-        Storage::disk('public')->put($path, $binary);
-
-        return $path;
+        // Rasterbilder am Inhalt erkennen (MIME-Angabe der Datei ist egal); sonst nur als
+        // bereinigtes SVG übernehmen (kein Script über präparierte Import-Dateien).
+        return GameImage::storeRaster($game, $binary)
+            ?? (str_contains(substr($binary, 0, 2048), '<svg') || ($image['mime'] ?? null) === 'image/svg+xml'
+                ? GameImage::storeSvg($game, $binary)
+                : null);
     }
 
     /** Nur gültige Übersetzungen (Sprachkürzel => Text) übernehmen. */

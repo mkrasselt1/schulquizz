@@ -3,6 +3,13 @@
 Versionen = Git-Tags = Docker-Image-Tags auf Docker Hub (`mkrasselt1/schulquizz:<version>`).
 `latest` zeigt immer auf die neueste Version.
 
+## dev-0.27
+- **Export/Import mit Bildern abgesichert:** Raum- und Hinweisbilder (auch SVG), Fragen- und
+  Antwortbilder landen sicher in der `.quiz.json` und werden beim Import wiederhergestellt.
+  Der Bildtyp richtet sich jetzt nach der Dateiendung statt nach der Inhaltserkennung (die meldete SVG je
+  nach System als `text/xml` → Bild ging beim Import verloren). Rasterbilder werden beim Import
+  am Inhalt geprüft.
+
 ## dev-0.26
 - **Fix:** Bei „jederzeit spielbaren“ Escape-Rooms wurde jede Lösung mit „Pausiert“ abgelehnt,
   solange die Lehrkraft den Raum nicht zusätzlich gestartet hatte. Die eigene Uhr startet jetzt

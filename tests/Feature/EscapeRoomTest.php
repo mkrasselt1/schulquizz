@@ -230,6 +230,52 @@ class EscapeRoomTest extends TestCase
         );
     }
 
+    public function test_export_file_contains_all_images_and_import_restores_them(): void
+    {
+        Storage::fake('public');
+        [$user, $game, $question] = $this->escapeGame();
+        $this->configure($game, $question);
+
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90"><rect width="160" height="90" fill="#123"/></svg>';
+        Storage::disk('public')->put("game-images/{$game->id}/room.svg", $svg);
+        Storage::disk('public')->put("game-images/{$game->id}/clue.png", $png);
+        Storage::disk('public')->put("game-images/{$game->id}/prompt.png", $png);
+        Storage::disk('public')->put("game-images/{$game->id}/option.png", $png);
+
+        $escape = $game->escape;
+        $escape['rooms'][0]['image_path'] = "game-images/{$game->id}/room.svg";
+        $escape['rooms'][0]['hotspots'][0]['image_path'] = "game-images/{$game->id}/clue.png";
+        $game->escape = $escape;
+        $game->save();
+        $question->update(['prompt_image_path' => "game-images/{$game->id}/prompt.png"]);
+        $question->answerOptions->first()->update(['image_path' => "game-images/{$game->id}/option.png"]);
+
+        // Echter Download-Weg
+        $json = $this->actingAs($user)->get("/games/{$game->id}/export")->assertOk()->streamedContent();
+        $data = json_decode($json, true);
+        $this->assertSame('image/svg+xml', $data['game']['escape']['rooms'][0]['image']['mime']);
+        $this->assertSame('image/png', $data['game']['escape']['rooms'][0]['hotspots'][0]['image']['mime']);
+        $this->assertNotNull($data['game']['questions'][0]['prompt_image']);
+        $this->assertNotNull($data['game']['questions'][0]['options'][0]['image']);
+
+        // Import bei anderer Lehrkraft → alle Bilder als eigene Dateien vorhanden
+        $other = User::factory()->create();
+        $this->actingAs($other)->post('/games/import', [
+            'file' => UploadedFile::fake()->createWithContent('escape.quiz.json', $json),
+        ])->assertRedirect();
+        $copy = Game::where('user_id', $other->id)->firstOrFail();
+
+        $room = EscapeRoom::of($copy)['rooms'][0];
+        $this->assertStringEndsWith('.svg', $room['image_path']);
+        $this->assertStringContainsString('<rect', Storage::disk('public')->get($room['image_path']));
+        $this->assertSame($png, Storage::disk('public')->get($room['hotspots'][0]['image_path']));
+        $q = $copy->questions()->with('answerOptions')->first();
+        $this->assertSame($png, Storage::disk('public')->get($q->prompt_image_path));
+        $this->assertSame($png, Storage::disk('public')->get($q->answerOptions->first()->image_path));
+        $this->assertStringStartsWith("game-images/{$copy->id}/", $q->prompt_image_path);
+    }
+
     public function test_grader_matches_frontend_rules(): void
     {
         $game = $this->escapeGame()[1];
