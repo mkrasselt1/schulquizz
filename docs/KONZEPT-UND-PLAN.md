@@ -1,4 +1,4 @@
-# Konzept & Implementierungsplan: Datenschutzkonforme Quiz-Web-App ("Schulquizz")
+# Konzept & Implementierungsplan: Datenschutzkonforme Quiz-Web-App ("Tafelquiz", Arbeitstitel "Schulquizz")
 
 ## Context
 

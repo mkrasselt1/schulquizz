@@ -1,6 +1,6 @@
 export default {
     app: {
-        name: 'Schulquizz',
+        name: 'Tafelquiz',
         tagline: 'Privacy-friendly live quizzes for the classroom',
     },
     nav: {
@@ -14,7 +14,7 @@ export default {
     },
     auth: {
         registrationCode: 'Registration code',
-        registrationCodeHint: 'Ask the person who runs Schulquizz at your school for the code.',
+        registrationCodeHint: 'Ask the person who runs Tafelquiz at your school for the code.',
         loginTitle: 'Log in',
         registerTitle: 'Create account',
         name: 'Name',

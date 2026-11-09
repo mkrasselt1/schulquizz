@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ __('Zugriff erlauben') }} – {{ config('app.name', 'Schulquizz') }}</title>
+    <title>{{ __('Zugriff erlauben') }} – {{ config('app.name') }}</title>
     {{-- Bewusst ohne externe Fonts/CDNs (Datenschutz). --}}
     <style>
         :root { --bg:#eef2ff; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb; --primary:#4f46e5; --primary-text:#fff; --soft:#f9fafb; }
@@ -31,7 +31,7 @@
 <body>
 <main class="card">
     <div class="icon">🤖🔐</div>
-    <h1>„{{ $client->name }}“ möchte auf Schulquizz zugreifen</h1>
+    <h1>„{{ $client->name }}“ möchte auf {{ config('app.name') }} zugreifen</h1>
     <p class="muted" style="text-align:center">Angemeldet als <strong>{{ $user->email }}</strong></p>
 
     <div class="box">

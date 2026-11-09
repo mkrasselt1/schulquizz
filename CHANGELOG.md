@@ -1,7 +1,16 @@
 # Änderungen
 
-Versionen = Git-Tags = Docker-Image-Tags auf Docker Hub (`mkrasselt1/schulquizz:<version>`).
+Versionen = Git-Tags = Docker-Image-Tags auf Docker Hub (`mkrasselt1/schulquizz:<version>`;
+Image und Repository behalten den alten Namen).
 `latest` zeigt immer auf die neueste Version.
+
+## v1.0.0 – Tafelquiz
+- **Neuer Name: Tafelquiz** ([tafelquiz.de](https://tafelquiz.de)), vorher Arbeitstitel „Schulquizz“.
+  Oberfläche, Link-Vorschau, KI-Assistenten-Schnittstelle (MCP) und Doku heißen jetzt so;
+  Docker-Image `mkrasselt1/schulquizz` bleibt (Updates laufen wie gewohnt).
+- Vorschaubild für Link-Vorschauen (Messenger/Schul-Chat) und Tafel-Favicon.
+- Erste stabile Version: enthält alles bis dev-0.30 (Live-Quiz, Escape-Rooms inkl. „jederzeit
+  spielbar“ und Abschluss-Codes, MCP mit OAuth, abgesicherte Datenschutz-Zusagen).
 
 ## dev-0.30
 - Browser-Tab und Link-Vorschau zeigen den App-Namen statt „Laravel“; Beschreibung für

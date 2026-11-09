@@ -15,10 +15,10 @@ use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
 
-#[Name('Schulquizz')]
+#[Name('Tafelquiz')]
 #[Version('1.0.0')]
 #[Instructions(<<<'TXT'
-Schulquizz ist eine datenschutzfreundliche Quiz- und Escape-Room-App für Schulen. Über diese
+Tafelquiz ist eine datenschutzfreundliche Quiz- und Escape-Room-App für Schulen. Über diese
 Schnittstelle bearbeitest du NUR die eigenen Spiele der angemeldeten Lehrkraft: Rätsel/Fragen
 anlegen und ändern sowie die Räume eines Escape-Rooms gestalten. Live-Spiele und Schülerdaten
 sind nicht zugänglich.

@@ -1,6 +1,6 @@
 # Datenschutz (Kurzfassung)
 
-Schulquizz ist auf **Datensparsamkeit** ausgelegt. Diese Datei fasst die technischen Maßnahmen
+Tafelquiz ist auf **Datensparsamkeit** ausgelegt. Diese Datei fasst die technischen Maßnahmen
 zusammen; sie ersetzt keine rechtliche Datenschutzerklärung, liefert aber die Grundlage dafür.
 
 ## Welche Daten werden verarbeitet?

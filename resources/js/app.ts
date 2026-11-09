@@ -29,7 +29,7 @@ configureEcho({
 
 // Name kommt vom Server (config/app.php → APP_NAME), damit Umbenennen ohne Neubau geht.
 const appName =
-    document.querySelector<HTMLMetaElement>('meta[name="application-name"]')?.content || 'Schulquizz';
+    document.querySelector<HTMLMetaElement>('meta[name="application-name"]')?.content || 'Tafelquiz';
 for (const locale of ['de', 'en']) i18n.global.mergeLocaleMessage(locale, { app: { name: appName } });
 
 createInertiaApp({

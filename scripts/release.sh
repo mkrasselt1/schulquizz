@@ -17,7 +17,7 @@ git add -A
 git commit -m "$MSG" || echo "  (nichts zu committen)"
 
 echo "== 2. Git-Tag $VERSION =="
-git tag -a "$VERSION" -m "Schulquizz $VERSION (= Docker $IMAGE)"
+git tag -a "$VERSION" -m "Tafelquiz $VERSION (= Docker $IMAGE)"
 
 echo "== 3. Smoke-Test (echtes Image + MariaDB) =="
 IMAGE="$IMAGE" bash scripts/smoke-test.sh

@@ -1,4 +1,8 @@
-# Schulquizz
+# Tafelquiz
+
+Website: **[tafelquiz.de](https://tafelquiz.de)** · (früher „Schulquizz“ – Repository und
+Docker-Image heißen aus Kompatibilitätsgründen weiter `schulquizz`)
+
 
 Datenschutzfreundliche Quiz- und Escape-Room-Plattform für Lehrkräfte und Schüler:innen.
 
@@ -56,6 +60,7 @@ aktiv sein.
 | `APP_URL` | `https://quiz.meine-schule.de` | **mit `https://`**, ohne `/` am Ende |
 | `DB_CONNECTION` … | siehe unten | nur für externe MariaDB nötig |
 | `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | | sonst verschickt „Passwort vergessen“ nichts |
+| `APP_NAME` / `APP_TAGLINE` | `Tafelquiz Musterschule` | optional: Name und Beschreibung (Browser-Tab, Link-Vorschau) |
 | `REGISTRATION_CODE` | `lehrerzimmer` | optional: Registrieren nur mit Code |
 | `REGISTRATION_ENABLED` | `false` | optional: Registrierung ganz aus |
 | `TRUSTED_PROXIES` | `172.17.0.1` | optional: nur nötig, wenn der Reverse-Proxy **nicht** aus einem privaten Netz kommt (Standard: private Netze) |

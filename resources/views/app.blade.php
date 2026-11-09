@@ -14,8 +14,11 @@
         <meta property="og:title" content="{{ config('app.name') }}">
         <meta property="og:description" content="{{ config('schulquizz.tagline') }}">
         <meta property="og:url" content="{{ url('/') }}">
-        <meta name="twitter:card" content="summary">
-        <meta name="theme-color" content="#4338ca">
+        <meta property="og:image" content="{{ url('/og-image.png') }}">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="theme-color" content="#1f3b2d">
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
         {{-- Theme (dark/light) vor dem Paint setzen – kein Flackern. Rein lokal. --}}
