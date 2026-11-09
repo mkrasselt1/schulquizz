@@ -9,4 +9,9 @@ return [
      */
     'registration_enabled' => (bool) env('REGISTRATION_ENABLED', true),
     'registration_code' => env('REGISTRATION_CODE'),
+
+    /*
+     * Kurzbeschreibung für Suchmaschinen und Link-Vorschauen (Messenger, Schul-Chat).
+     */
+    'tagline' => env('APP_TAGLINE', 'Live-Quizze und Escape-Rooms für die Schule – ohne Schülerkonten, ohne dass Antworten gespeichert werden.'),
 ];

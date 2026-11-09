@@ -27,10 +27,13 @@ configureEcho({
     enabledTransports: ['ws', 'wss'],
 });
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+// Name kommt vom Server (config/app.php → APP_NAME), damit Umbenennen ohne Neubau geht.
+const appName =
+    document.querySelector<HTMLMetaElement>('meta[name="application-name"]')?.content || 'Schulquizz';
+for (const locale of ['de', 'en']) i18n.global.mergeLocaleMessage(locale, { app: { name: appName } });
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    title: (title) => (title && title !== appName ? `${title} – ${appName}` : appName),
     resolve: (name) =>
         resolvePageComponent(
             `./Pages/${name}.vue`,

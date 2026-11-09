@@ -3,6 +3,11 @@
 Versionen = Git-Tags = Docker-Image-Tags auf Docker Hub (`mkrasselt1/schulquizz:<version>`).
 `latest` zeigt immer auf die neueste Version.
 
+## dev-0.30
+- Browser-Tab und Link-Vorschau zeigen den App-Namen statt „Laravel“; Beschreibung für
+  Vorschauen (Messenger/Schul-Chat) und eigenes Favicon. Name und Beschreibung kommen aus
+  `APP_NAME` bzw. `APP_TAGLINE` (Umbenennen ohne Neubau).
+
 ## dev-0.29
 - Wie dev-0.28, mit korrigiertem Dockerfile (dev-0.28 ließ sich nicht bauen und wurde nie als Image
   veröffentlicht).
