@@ -32,9 +32,7 @@ RUN apk add --no-cache libpng-dev libzip-dev icu-dev oniguruma-dev su-exec \
 # Upload-Limits (Handyfotos), Opcache
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-schulquizz.ini
 # Datensparsam: kein php-fpm-Zugriffslog (das offizielle Image schreibt jede Anfrage ins Container-Log).
-RUN printf '[www]
-access.log = /dev/null
-' > /usr/local/etc/php-fpm.d/zz-schulquizz.conf
+COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-schulquizz.conf
 
 COPY . .
 COPY --from=vendor /app/vendor ./vendor

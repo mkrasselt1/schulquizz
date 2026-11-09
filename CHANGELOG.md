@@ -3,7 +3,11 @@
 Versionen = Git-Tags = Docker-Image-Tags auf Docker Hub (`mkrasselt1/schulquizz:<version>`).
 `latest` zeigt immer auf die neueste Version.
 
-## dev-0.28 – Versprechen technisch abgesichert
+## dev-0.29
+- Wie dev-0.28, mit korrigiertem Dockerfile (dev-0.28 ließ sich nicht bauen und wurde nie als Image
+  veröffentlicht).
+
+## dev-0.28 – Versprechen technisch abgesichert (nur Git-Tag, kein Image)
 - **Sitzungen nur noch im verschlüsselten Cookie** statt in der Datenbank – Schülernamen, IPs und
   User-Agents landen nicht mehr in der Tabelle `sessions`. (Alte DB-Sitzungen räumt der Aufräumlauf weg.
   Einmalige Folge des Updates: alle müssen sich neu anmelden bzw. neu beitreten.)
