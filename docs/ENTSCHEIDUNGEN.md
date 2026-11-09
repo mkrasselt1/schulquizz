@@ -149,6 +149,25 @@ self-hostbar, DE/EN, wiederverwendbare Layout-Bausteine.
 - **Externe Schrift entfernt** (fonts.bunny.net) → erfüllt „keine externen Requests"; System-Font.
 - **Demo-Seed:** `lehrer@schulquizz.test` / `passwort` + Beispiel-Quiz (`php artisan db:seed`).
 
+## Erweiterungen ab dev-0.18
+
+- **Escape-Room als eigener Spielmodus** (`games.mode = escape`, Struktur in `games.escape`). Rätsel
+  sind normale Fragen; nur automatisch prüfbare Typen (choice, cloze, free_text, sort, estimate).
+  Lösungen/Codes verlassen nie den Server: Prüfung zustandslos (`AnswerGrader`), Fortschritt
+  meldet der Server an die Lehrkraft. Fortschritt der Schüler lokal + signierte Quittungen (HMAC
+  mit `APP_KEY`) für das erneute Melden nach Leitstand-Reload.
+- **Selbstgesteuert statt Lehrer-getaktet**; Zeitlimit über `question_deadline`, Pause friert die
+  Restzeit ein (`paused_remaining_ms`).
+- **Manuelle Bewertung** (Malen, Überstimmen bei eigener Antwort) im Leitstand, auch nach Spielende.
+- **Robustheit (dev-0.22):** Zustand per HTTP nachladen nach Reconnect/Sichtbarkeitswechsel;
+  Leitstand fordert beim Verbinden ein „resync“ an; Broadcasts schlagen nie bis zur Aktion durch
+  (`SessionEvent::send`); Identität nur innerhalb derselben Session wiederverwenden.
+- **Betrieb:** Scheduler + `schulquizz:cleanup`; supervisord mit unbegrenzten Neustarts;
+  HEALTHCHECK; Image-Veröffentlichung nur nach grünen Tests (`ci.yml` → Job `publish`).
+- **MCP (dev-0.23):** `laravel/mcp` + Passport (OAuth 2.1, dynamische Client-Registrierung).
+  Bewusst nur Inhalte der eigenen Spiele; keine Live-Steuerung, keine Uploads. Eigene
+  Zustimmungsseite ohne externe Fonts.
+
 ## Offene Punkte / Empfehlungen für dich
 
 - **Realtime-E2E** ist nur backend-seitig getestet (Broadcasts via `Event::fake`). Für echte
@@ -156,8 +175,7 @@ self-hostbar, DE/EN, wiederverwendbare Layout-Bausteine.
   ausgelassen. Manuell testbar mit `composer run dev` (startet auch Reverb).
 - **Wertung ist client-seitig** (Lehrer-Browser). Das ist Absicht (Datensparsamkeit), heißt aber:
   fällt das Lehrergerät mitten im Spiel aus, ist der Live-Stand weg (localStorage überlebt Reload).
-- **Draw/Freitext-Nachbewertung im Leitstand-UI**: Backend + Scoring-Hook (`setManualPoints`) sind
-  da; ein dediziertes UI zum Durchklicken der Zeichnungen ist noch schlank – guter nächster Schritt.
 - **Basis-Sperrliste** ist absichtlich knapp; bitte fachlich/redaktionell erweitern.
 - **Welcome.vue** (Breeze-Default) ist verwaist, aber harmlos – kann gelöscht werden.
-- **APP_KEY im Docker**: für Produktion einmalig fest setzen (sonst Session-Reset bei Neustart).
+- **Bilder per MCP** sind bewusst nicht möglich (Hintergrundbilder lädt die Lehrkraft im Editor hoch).
+- **APP_KEY im Docker**: wird automatisch erzeugt und im Volume `storage/` gespeichert – Volume einrichten!
