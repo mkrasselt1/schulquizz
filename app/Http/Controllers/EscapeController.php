@@ -17,14 +17,17 @@ class EscapeController extends Controller
         $this->authorize('update', $game);
         abort_unless($game->isEscape(), 422);
 
-        $data = $request->validate([
+        $request->validate([
             'escape' => ['required', 'array'],
             'escape.rooms' => ['required', 'array', 'min:1', 'max:20'],
             'escape.rooms.*.hotspots' => ['nullable', 'array', 'max:60'],
             'escape.time_limit' => ['nullable', 'integer', 'min:1', 'max:600'],
         ]);
 
-        $game->escape = EscapeRoom::sanitize($data['escape'], $game);
+        // Bewusst die ROHE Eingabe: validate() liefert bei verschachtelten Regeln nur Felder
+        // mit eigener Regel zurück (Raum-Titel, Bild, Intro … würden verloren gehen).
+        // Die vollständige Normalisierung/Absicherung übernimmt sanitize().
+        $game->escape = EscapeRoom::sanitize((array) $request->input('escape'), $game);
         $game->save();
 
         return back()->with('status', 'escape-saved');

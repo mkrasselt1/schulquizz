@@ -14,7 +14,9 @@ use App\Support\EscapeRoom;
 use App\Support\QuestionDefaults;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class EscapeRoomTest extends TestCase
@@ -61,6 +63,40 @@ class EscapeRoomTest extends TestCase
         $this->assertNull($hs[1]['question_id']); // Frage eines anderen Spiels
         $this->assertSame('1234', $hs[2]['code']);
         $this->assertSame(['h_a'], $hs[2]['requires']);
+    }
+
+    public function test_saving_keeps_all_room_and_game_fields(): void
+    {
+        Storage::fake('public');
+        [$user, $game] = $this->escapeGame();
+
+        $path = $this->actingAs($user)
+            ->postJson("/games/{$game->id}/media", ['image' => UploadedFile::fake()->image('raum.jpg')])
+            ->json('path');
+
+        $this->actingAs($user)->put("/games/{$game->id}/escape", [
+            'escape' => [
+                'intro' => ['de' => 'Ihr seid eingeschlossen'],
+                'outro' => ['de' => 'Geschafft'],
+                'time_limit' => 25,
+                'show_hotspots' => false,
+                'rooms' => [[
+                    'id' => 'r_labor',
+                    'title' => ['de' => 'Labor'],
+                    'image_path' => $path,
+                    'hotspots' => [],
+                ]],
+            ],
+        ])->assertRedirect();
+
+        $escape = $game->fresh()->escape;
+        $this->assertSame(['de' => 'Ihr seid eingeschlossen'], $escape['intro']);
+        $this->assertSame(['de' => 'Geschafft'], $escape['outro']);
+        $this->assertSame(25, $escape['time_limit']);
+        $this->assertFalse($escape['show_hotspots']);
+        $this->assertSame('r_labor', $escape['rooms'][0]['id']);
+        $this->assertSame(['de' => 'Labor'], $escape['rooms'][0]['title']);
+        $this->assertSame($path, $escape['rooms'][0]['image_path']);
     }
 
     public function test_other_teacher_cannot_save_escape(): void
